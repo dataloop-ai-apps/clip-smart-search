@@ -52,7 +52,7 @@ const columns = [
         label: 'Item name',
         align: 'left',
         field: 'name'
-    }
+    },
     {
         name: 'value',
         required: true,
