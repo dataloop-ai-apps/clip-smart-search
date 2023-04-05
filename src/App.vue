@@ -58,7 +58,7 @@ const columns = [
         required: true,
         label: 'Cosine Value',
         align: 'left',
-        field: 'name',
+        field: 'value',
         sortable: true
     }
 ]
