@@ -1,7 +1,7 @@
 {
-  "name": "vite-project",
+  "name": "clip-smart-search",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.0.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -12,7 +12,7 @@
     "lint:fix": "eslint ./src --ext .ts,.vue --fix"
   },
   "dependencies": {
-    "@dataloop-ai/components": "^0.15.4",
+    "@dataloop-ai/components": "^0.16.16",
     "@dataloop-ai/jssdk": "^0.0.29",
     "@vitejs/plugin-basic-ssl": "^1.0.1",
     "vue": "^3.2.47",
