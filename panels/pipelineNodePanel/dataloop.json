@@ -1,0 +1,55 @@
+{
+    "components": {
+        "panels": [
+            {
+                "name": "pipelineNodePanel",
+                "supportedSlots": [
+                    {
+                        "type": "pipelineNodeConfig",
+                        "configuration": {}
+                    }
+                ],
+                "conditions": {
+                    "resources": []
+                }
+            }
+        ],
+        "pipelineNodes": [
+            {
+                "invoke": {
+                    "type": "function",
+                    "namespace": "custom_nodes.data_split"
+                },
+                "categories": ["workflow"]
+            }
+        ],
+        "modules": [
+            {
+                "name": "custom_nodes",
+                "entryPoint": "modules/main.py",
+                "className": "Runner",
+                "initInputs": [],
+                "functions": [
+                    {
+                        "name": "data_split",
+                        "description": "Data splitting custom node",
+                        "input": [
+                            {
+                                "type": "Item",
+                                "name": "item"
+                            }
+                        ],
+                        "output": [
+                            {
+                                "type": "Item",
+                                "name": "item"
+                            }
+                        ],
+                        "displayIcon": "qa-sampling",
+                        "displayName": "Data Split"
+                    }
+                ]
+            }
+        ]
+    }
+}
