@@ -1,3 +1,22 @@
+<template>
+    <dl-theme-provider :is-dark="isDark">
+        <img
+            v-if="itemStream"
+            :src="itemStream"
+            :width="itemWidth"
+            :height="itemHeight"
+        />
+        <div style="display: flex; gap: 5px">
+            <dl-chip
+                v-for="annotation in annotations"
+                :key="annotation.id"
+                :label="annotation.label"
+                :color="annotation.labelColor"
+            />
+        </div>
+    </dl-theme-provider>
+</template>
+
 <script setup lang="ts">
 import {DlAnnotationEvent, DlEvent, SDKAnnotation} from '@dataloop-ai/jssdk'
 import { computed, onMounted, ref } from 'vue'
@@ -59,25 +78,5 @@ onMounted(async () => {
 })
 </script>
 
-<template>
-    <dl-theme-provider :is-dark="isDark">
-        <img
-            v-if="itemStream"
-            :src="itemStream"
-            :width="itemWidth"
-            :height="itemHeight"
-        />
-        <div style="display: flex; gap: 5px">
-            <dl-chip
-                v-for="annotation in annotations"
-                :key="annotation.id"
-                :label="annotation.label"
-                :color="annotation.labelColor"
-            />
-        </div>
-    </dl-theme-provider>
-</template>
-
 <style scoped>
-
 </style>
