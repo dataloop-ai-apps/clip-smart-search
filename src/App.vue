@@ -81,9 +81,11 @@ const performSearch = async () => {
     const result: { name: string; value: any }[] = []
     const embedding = await modelSession.value.run(searchText.value)
     for (const [key, value] of Object.entries(embeddings.value)) {
-        if (cosineSimilarity(embedding, value as any) < THRESHOLD) {
-            result.push({ name: key, value })
-        }
+        let similarity = cosineSimilarity(embedding, value as any);
+        result.push({ name: key, value:similarity })
+        // if (similarity < THRESHOLD) {
+        //     result.push({ name: key, value:similarity })
+        // }
     }
 
     rows.value = result.sort((a, b) => a.value - b.value )
