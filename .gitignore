@@ -49,3 +49,9 @@ Thumbs.db
 *.mov
 *.wmv
 
+
+checkpoints/
+output/
+*.csv
+*.png
+*.npy
