@@ -52,6 +52,4 @@ Thumbs.db
 
 checkpoints/
 output/
-*.csv
-*.png
 *.npy
