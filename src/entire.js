@@ -1,13 +1,31 @@
-// @ts-ignore
 import Tokenizer from 'https://deno.land/x/clip_bpe@v0.0.6/mod.js'
-import { downloadBlobWithProgress } from './utils'
-<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.12.0/dist/ort.js"></script>
+import ort from "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.12.0/dist/ort.js"
 
 const { InferenceSession, Tensor } = ort
 
 let tokenizer = new Tokenizer()
 let session = null
 let url = `https://huggingface.co/rocca/openai-clip-js/resolve/main/clip-text-vit-32-float32-int32.onnx`
+
+export const downloadBlobWithProgress = (url, onProgress) => {
+    return new Promise((res, rej) => {
+        let blob;
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', url, true);
+        xhr.responseType = 'arraybuffer';
+        xhr.onload = function (e) {
+            blob = new Blob([this.response]);
+        };
+        if (onProgress) {
+            xhr.onprogress = onProgress;
+        }
+        xhr.onloadend = function (e) {
+            res(blob);
+        };
+        xhr.onerror = rej;
+        xhr.send();
+    });
+};
 
 async function init(options = {}) {
     const { onProgress, warmup } = options
@@ -32,6 +50,7 @@ async function runModel(text) {
 }
 
 async function run(textInput, itemsQuery) {
+    await init()
     let vector = await runModel(textInput)
     let query = {
         'filter': { '$and': [{ 'hidden': false }, { 'type': 'file' }] },
