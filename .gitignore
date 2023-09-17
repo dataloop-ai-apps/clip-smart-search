@@ -23,7 +23,7 @@ coverage/
 # Maven
 target/
 dist/
-
+data/
 # JetBrains IDE
 .idea/
 
