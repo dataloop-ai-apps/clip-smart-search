@@ -24,6 +24,7 @@ coverage/
 target/
 dist/
 data/
+weights/
 # JetBrains IDE
 .idea/
 
