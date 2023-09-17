@@ -50,3 +50,7 @@ Thumbs.db
 *.mov
 *.wmv
 
+
+checkpoints/
+output/
+*.npy
