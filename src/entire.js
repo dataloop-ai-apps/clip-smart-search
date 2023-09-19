@@ -8,12 +8,12 @@ async function run(textInput, itemsQuery) {
             try {
                 let quantized = false; // change to `true` for a much smaller model (e.g. 87mb vs 345mb for image model), but lower accuracy
                 transformers = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.6.1')
-                transformers.env.allowLocalModels = false
-                transformers.env.remoteHost = "https://huggingface.co/"
-                transformers.env.remotePathTemplate = "Xenova/clip-vit-base-patch32/resolve/main"
+                // transformers.env.allowLocalModels = false
+                // transformers.env.remoteHost = "https://huggingface.co/"
+                // transformers.env.remotePathTemplate = "Xenova/clip-vit-base-patch32/resolve/main"
 
-                tokenizer = await transformers.AutoTokenizer.from_pretrained('')
-                textModel = await transformers.CLIPTextModelWithProjection.from_pretrained('dummy', { quantized });
+                tokenizer = await transformers.AutoTokenizer.from_pretrained('Xenova/clip-vit-base-patch32')
+                textModel = await transformers.CLIPTextModelWithProjection.from_pretrained('Xenova/clip-vit-base-patch32', { quantized });
 
             }
             catch (e) {
