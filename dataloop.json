@@ -1,0 +1,102 @@
+{
+    "version": "0.0.7",
+    "creator": "or@dataloop.ai",
+    "name": "clip-image-search",
+    "displayName": "Clip Image Search",
+    "description": "",
+    "icon": "icon-dl-sdk-documentation",
+    "categories": [
+        "clip",
+        "search"
+    ],
+    "scope": "system",
+    "components": {
+        "panels": [],
+        "toolbars": [],
+        "modules": [
+            {
+                "name": "extract_features",
+                "versions": {
+                    "dtlpy": "1.85.4"
+                },
+                "entryPoint": "features/extract_features.py",
+                "className": "ClipExtractor",
+                "initInputs": [
+                    {
+                        "type": "Project",
+                        "name": "project"
+                    }
+                ],
+                "functions": [
+                    {
+                        "name": "extract_item",
+                        "description": "Extract CLIP features on a single item",
+                        "input": [
+                            {
+                                "type": "Item",
+                                "name": "item"
+                            }
+                        ],
+                        "output": [
+                            {
+                                "type": "Item",
+                                "name": "item"
+                            }
+                        ],
+                        "displayName": "Clip Features"
+                    }
+                ]
+            }
+        ],
+        "services": [
+            {
+                "name": "clip-extraction",
+                "moduleName": "extract_features",
+                "initParams": {},
+                "packageName": "default-package",
+                "packageRevision": "latest",
+                "runtime": {
+                    "podType": "regular-m",
+                    "numReplicas": 1,
+                    "concurrency": 10,
+                    "pyPackages": {},
+                    "runnerImage": "gcr.io/viewo-g/piper/agent/runner/cpu/clip-search:0.1.0",
+                    "singleAgent": false,
+                    "autoscaler": {
+                        "type": "rabbitmq",
+                        "minReplicas": 0,
+                        "maxReplicas": 2,
+                        "queueLength": 100
+                    },
+                    "preemptible": false
+                },
+                "executionTimeout": 3600,
+                "drainTime": 600,
+                "onReset": "failed",
+                "runExecutionAsProcess": false,
+                "maxAttempts": 3
+            }
+        ],
+        "triggers": [
+            {
+                "name": "extract-clip-on-item",
+                "active": true,
+                "type": "Event",
+                "namespace": "services.clip-extraction",
+                "spec": {
+                    "filter": {},
+                    "executionMode": "Always",
+                    "resource": "Item",
+                    "actions": [
+                        "Created"
+                    ],
+                    "input": {},
+                    "operation": {
+                        "type": "function",
+                        "functionName": "extract_item"
+                    }
+                }
+            }
+        ]
+    }
+}
