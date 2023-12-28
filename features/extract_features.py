@@ -22,12 +22,15 @@ class ClipExtractor(dl.BaseServiceRunner):
         self.preprocess = preprocess
         try:
             feature_set = project.feature_sets.get(feature_set_name='clip-image-search')
+            logger.info(f'Feature Set found! name: {feature_set.name}, id: {feature_set.id}')
         except dl.exceptions.NotFound:
+            logger.info('Feature Set not found. creating...')
             feature_set = project.feature_sets.create(name='clip-image-search',
                                                       entity_type=dl.FeatureEntityType.ITEM,
                                                       project_id=project.id,
                                                       set_type='clip',
                                                       size=512)
+            logger.info(f'Feature Set created! name: {feature_set.name}, id: {feature_set.id}')
         self.feature_set = feature_set
 
     def extract_item(self, item: dl.Item) -> dl.Item:

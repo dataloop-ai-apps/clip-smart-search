@@ -5,12 +5,7 @@ project = dl.projects.get(project_name='COCO ors')
 dataset = project.datasets.get(dataset_name='features')
 project.feature_sets.list().print()
 
-# feature_set = project.feature_sets.create(name='query-test',
-#                                           size=2,
-#                                           entity_type='item',
-#                                           set_type='2d')
-feature_set = project.feature_sets.get(feature_set_name='query-test')
-# feature_set = project.feature_sets.get(feature_set_id='64e46f5570b4f34ada717620')
+feature_set = project.feature_sets.get(feature_set_id='650da7deba266d44057229b4')
 
 for x in range(10):
     for y in range(10):
@@ -43,6 +38,16 @@ def filters_vectors():
 
 
 def filter_items():
+
+    from features.extract_features import ClipExtractor
+    clipp = ClipExtractor(dl.Context(project=project))
+
+    import clip
+    model, preprocess = clip.load("ViT-B/32", device='cuda')
+    text = clip.tokenize(["image of a business man with a tie"]).to('cuda')
+    dataset = dl.datasets.get(dataset_id='64e46f8d70b4f336c3717630')
+    text_features = model.encode_text(text)
+
     custom_filter = {
         'filter': {'$and': [{'hidden': False}, {'type': 'file'}]},
         'page': 0,
@@ -57,7 +62,7 @@ def filter_items():
             'filter': {
                 'value': {
                     '$euclid': {
-                        'input': [5, 5],
+                        'input': text_features[0].tolist(),
                         '$euclidSort': {'eu_dist': 'ascending'}
                     }
                 },

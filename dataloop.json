@@ -1,5 +1,5 @@
 {
-    "version": "0.0.7",
+    "version": "0.0.8",
     "creator": "or@dataloop.ai",
     "name": "clip-image-search",
     "displayName": "Clip Image Search",
@@ -12,7 +12,14 @@
     "scope": "system",
     "components": {
         "panels": [],
-        "toolbars": [],
+        "toolbars": [
+            {
+                "type": "smartSearch",
+                "display name ": "Free Text Search",
+                "lineContext": "enter any free text sentence to search",
+                "invoke": {"script": "https://raw.githubusercontent.com/dataloop-ai-apps/clip-smart-search/main/src/entire.js?token=GHSAT0AAAAAACGRSDIGNZEGYYEAMZ73GCNWZMNHEGA"}
+            }
+        ],
         "modules": [
             {
                 "name": "extract_features",
