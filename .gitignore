@@ -160,3 +160,5 @@ Thumbs.db
 checkpoints/
 output/
 *.npy
+dataloop_scripts
+data

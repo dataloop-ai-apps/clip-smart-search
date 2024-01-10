@@ -7,12 +7,6 @@ import os
 import dtlpy as dl
 
 
-def bump(bump_type):
-    print(f'Bumping version')
-    subprocess.check_output(f'bumpversion  {bump_type} --allow-dirty', shell=True)
-    # subprocess.check_output('git push --follow-tags', shell=True)
-
-
 def publish_and_install(project_id):
     success = True
     env = dl.environment()
@@ -35,7 +29,7 @@ def publish_and_install(project_id):
         print(f'published successfully! dpk name: {dpk.name}, version: {dpk.version}, dpk id: {dpk.id}')
 
         try:
-            app = project.apps.get(name=dpk.display_name)
+            app = project.apps.get(app_name=dpk.display_name)
             print(f'already installed, updating...')
             app.dpk_version = dpk.version
             app.update()
@@ -80,18 +74,15 @@ def publish_and_install(project_id):
 
 if __name__ == "__main__":
     dl.setenv('rc')
-    parser = argparse.ArgumentParser(description='Build, Bump, Publish and Install')
-    parser.add_argument('--tag', action='store_true', help='Create a version git tag')
-    parser.add_argument('--publish', action='store_true', help='Publish DPK and install app')
+    # parser = argparse.ArgumentParser(description='Build, Bump, Publish and Install')
+    # parser.add_argument('--tag', action='store_true', help='Create a version git tag')
+    # parser.add_argument('--publish', action='store_true', help='Publish DPK and install app')
+    #
+    # parser.add_argument('--project', default='2cb9ae90-b6e8-4d15-9016-17bacc9b7bdf',
+    #                     help='Project to publish and install to')
+    # parser.add_argument('--bump-type', default='patch', help='Bump version type: "patch"/"prerelease"/"minor"/"major"')
+    # args = parser.parse_args()
 
-    parser.add_argument('--project', default='2cb9ae90-b6e8-4d15-9016-17bacc9b7bdf',
-                        help='Project to publish and install to')
-    parser.add_argument('--bump-type', default='patch', help='Bump version type: "patch"/"prerelease"/"minor"/"major"')
-    args = parser.parse_args()
+    project = dl.projects.get('CLIP-Shadi')
 
-    if args.tag is True:
-        # bump and push the new tag
-        bump(bump_type=args.bump_type)
-
-    if args.publish is True:
-        publish_and_install(project_id=args.project)
+    publish_and_install(project_id=project.id)
