@@ -1,82 +1,113 @@
 async function run(textInput, itemsQuery) {
+    let tokenizer
+    let textModel
+    let transformers
+    let featureSetId
+    const default_query ={ filter: { $and: [{ hidden: false }, { type: 'file' }] }}
+    debugger
     try {
-        let tokenizer
-        let textModel
-        let transformers
-        console.log('loading dependencies')
-        console.log(textInput)
-        debugger
-        async function loadDependencies() {
-            try {
-                let quantized = false; // change to `true` for a much smaller model (e.g. 87mb vs 345mb for image model), but lower accuracy
-                transformers = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.6.1')
-                transformers.env.allowLocalModels = false
-                transformers.env.remoteHost = "https://huggingface.co/"
-                transformers.env.remotePathTemplate = "Xenova/clip-vit-base-patch32/resolve/main"
-
-                tokenizer = await transformers.AutoTokenizer.from_pretrained('Xenova/clip-vit-base-patch32')
-                textModel = await transformers.CLIPTextModelWithProjection.from_pretrained('Xenova/clip-vit-base-patch32', { quantized });
-
-            }
-            catch (e) {
-                console.log(e)
-            }
-
-        }
-        await loadDependencies()
-        let binariesFileName = 'clip_feature_set.json'
         textInput = textInput['Text Box']
-        let texts = [textInput];
-        let textInputs = tokenizer(texts, { padding: true, truncation: true });
-        let { text_embeds } = await textModel(textInputs);
-        let vector = text_embeds.data
-        console.log(vector);
+    }
+    catch(e){
+        dl.sendEvent({ name: "app:toastMessage",
+                payload: {
+                message: "For CLIP FeatureSet input text is required",
+                type: "error"}
+                })
+        return default_query
+        }
 
-        let query = {
-            filter: { $and: [{ hidden: false }, { type: 'file' }] },
-            page: 0,
-            pageSize: 1000,
-            resource: 'items',
-            join: {
-                on: {
-                    resource: 'feature_vectors',
-                    local: 'entityId',
-                    forigen: 'id'
-                },
-                filter: {
-                    value: {
-                        $euclid: {
-                            input: Array.from(vector),
-                            $euclidSort: { eu_dist: 'ascending' }
+    try{
+        const item = await dl.items.getByName("/clip_feature_set.json", { binaries: true })
+        featureSetId = item.metadata.system.clip_feature_set_id
+    }
+    catch(e){
+              console.log(e)
+              dl.sendEvent({ name: "app:toastMessage",
+                payload: {
+                message: "CLIP FeatureSet does not exist for this project, please run pre-process",
+                type: "error"}
+                })
+             return default_query
+            }
+   const query_feature = {
+                        "filter": {
+                        "$and": [
+							{"hidden": false},
+							{"type": "file"}
+							]
+						},
+                        "resource": "items",
+                        "join": {
+                                "on": {
+                                    "resource": "feature_vectors",
+                                    "local": "entityId",
+                                    "forigen": "id"
+                                    },
+                                "filter": {
+                                    "featureSetId": featureSetId
+                                }
+                            }
                         }
-                    },
-                    featureSetId: '659475b38f8f9e8bcedb717a'
-                }
+
+    const dataset = await dl.datasets.get()
+    const items_count = dataset.itemsCount
+    const items_with_feature_count = await dl.items.countByQuery(query_feature)
+    debugger
+    if (items_count !== items_with_feature_count){
+         dl.sendEvent({ name: "app:toastMessage",
+               payload: {
+                message: "Feature extraction was not run on entire dataset, please run again!",
+                type: "warning"}
+    })}
+    console.log('loading dependencies')
+    async function loadDependencies() {
+        try {
+            let quantized = false; // change to `true` for a much smaller model (e.g. 87mb vs 345mb for image model), but lower accuracy
+            transformers = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.6.1')
+            transformers.env.allowLocalModels = false
+            transformers.env.remoteHost = "https://huggingface.co/"
+            transformers.env.remotePathTemplate = "Xenova/clip-vit-base-patch32/resolve/main"
+
+            tokenizer = await transformers.AutoTokenizer.from_pretrained('Xenova/clip-vit-base-patch32')
+            textModel = await transformers.CLIPTextModelWithProjection.from_pretrained('Xenova/clip-vit-base-patch32', { quantized });
+
+        }
+        catch (e) {
+            console.log(e)
+            return default_query
+        }
+
+    }
+    await loadDependencies()
+    let texts = [textInput];
+    let textInputs = tokenizer(texts, { padding: true, truncation: true });
+    let { text_embeds } = await textModel(textInputs);
+    let vector = text_embeds.data
+    console.log(vector);
+
+    let query = {
+        filter: { $and: [{ hidden: false }, { type: 'file' }] },
+        page: 0,
+        pageSize: 1000,
+        resource: 'items',
+        join: {
+            on: {
+                resource: 'feature_vectors',
+                local: 'entityId',
+                forigen: 'id'
+            },
+            filter: {
+                value: {
+                    $euclid: {
+                        input: Array.from(vector),
+                        $euclidSort: { eu_dist: 'ascending' }
+                    }
+                },
+                featureSetId: featureSetId
             }
         }
-        console.log(query)
-        return query
     }
-    catch (e) {
-        console.log(e)
-    }
+    console.log(query)
+    return query
 }
-
-
-
-
-datasets = await dl.datasets.query()
-datasets.items.find(object => object.name === 'Binaries')
-
-try{
-    const item = await dl.items.getByName("/clip_feature_set.json", { binaries: true })
-    let featureSetId = item.metadata.system.clip_feature_set_id
-    }
-catch(e){
-    console.log(e)
-    dl.sendEvent({ name: "app:toastMessage",
-                    payload: {
-                    message: "CLIP FeatureSet does not exist for this project, please run pre-process",
-                    type: "error"}
-                    })
-        }
