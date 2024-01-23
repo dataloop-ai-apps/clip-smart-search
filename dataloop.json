@@ -1,7 +1,7 @@
 {
   "version": "0.1.7",
-  "name": "clip-image-search-shadi",
-  "displayName": "Clip Image Search Shadi",
+  "name": "clip-image-search",
+  "displayName": "Clip Image Search",
   "description": "",
   "scope": "project",
   "components": {
@@ -31,7 +31,7 @@
               "invoke": {
                 "type": "script",
                 "namespace": "run",
-                "source": "659576d42536ea26205c02d0"
+                "source": "https://raw.githubusercontent.com/dataloop-ai-apps/clip-smart-search-script/main/entire.js"
               }
             }
           }
