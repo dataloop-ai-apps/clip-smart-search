@@ -2,10 +2,8 @@ from PIL import Image, ImageFile
 import dtlpy as dl
 import logging
 import torch
-import tqdm
 import time
 import clip
-from multiprocessing.pool import ThreadPool
 import concurrent.futures
 from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
@@ -20,9 +18,7 @@ class ClipExtractor(dl.BaseServiceRunner):
         if project is None:
             project = self.service_entity.project
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        model, preprocess = clip.load("ViT-B/32", device=self.device)
-        self.model = model
-        self.preprocess = preprocess
+        self.model, self.preprocess = clip.load("ViT-B/32", device=self.device)
         self.feature_set = None
         self.feature_vector_entities = list()
         self.create_feature_set(project=project)
@@ -69,6 +65,7 @@ class ClipExtractor(dl.BaseServiceRunner):
         output = image_features[0].cpu().detach().numpy().tolist()
         self.feature_set.features.create(value=output, entity=item)
         logger.info(f'Done. runtime: {(time.time() - tic):.2f}[s]')
+        self.feature_vector_entities.append(item.id)
         return item
 
     def extract_dataset(self, dataset: dl.Dataset, query=None, progress=None):
