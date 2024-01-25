@@ -1,0 +1,158 @@
+{
+  "name": "clip-image-search",
+  "displayName": "Clip Image Search",
+  "description": "",
+  "version": "v0.1.7",
+  "scope": "project",
+  "codebase": {
+    "type": "git",
+    "gitUrl": "https://github.com/dataloop-ai-apps/clip-smart-search",
+    "gitTag": "v0.1.7"
+  },
+  "components": {
+    "panels": [
+      {
+        "name": "clip-smart-search",
+        "supportedSlots": [
+          {
+            "type": "datasetBrowserSearch",
+            "configuration": {
+              "layout": {
+                "schema": {
+                  "fields": [
+                    {
+                      "name": "Text Box",
+                      "title": "",
+                      "props": {
+                        "title": false,
+                        "type": "string",
+                        "placeholder": "Write Text Here"
+                      },
+                      "widget": "dl-input"
+                    }
+                  ]
+                }
+              },
+              "invoke": {
+                "type": "script",
+                "namespace": "run",
+                "source": "https://raw.githubusercontent.com/dataloop-ai-apps/clip-smart-search-script/main/entire.js"
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "toolbars": [
+      {
+        "displayName": "NLP (CLIP)",
+        "icon": "icon-dl-models-management",
+        "location": "datasetBrowserSearchOption",
+        "invoke": {
+          "type": "panel",
+          "namespace": "clip-smart-search"
+        }
+      },
+      {
+        "displayName": "Clip Extract Features",
+        "invoke": {
+          "type": "function",
+          "namespace": "clip-extraction.extract_features.extract_dataset"
+        },
+        "location": "datasetBrowserApps",
+        "icon": "icon-dl-edit"
+      }
+    ],
+    "modules": [
+      {
+        "name": "extract_features",
+        "versions": {
+          "dtlpy": "1.88.13"
+        },
+        "entryPoint": "features/extract_features.py",
+        "className": "ClipExtractor",
+        "functions": [
+          {
+            "name": "extract_item",
+            "description": "Extract CLIP features on a single item",
+            "input": [
+              {
+                "type": "Item",
+                "name": "item"
+              }
+            ],
+            "output": [
+              {
+                "type": "Item",
+                "name": "item"
+              }
+            ],
+            "displayName": "Clip Features"
+          },
+          {
+            "name": "extract_dataset",
+            "description": "Extract CLIP features on a single item",
+            "input": [
+              {
+                "type": "Dataset",
+                "name": "dataset"
+              },
+              {
+                "type": "Json",
+                "name": "query"
+              }
+            ],
+            "displayName": "Clip Dataset Features"
+          }
+        ]
+      }
+    ],
+    "services": [
+      {
+        "name": "clip-extraction",
+        "moduleName": "extract_features",
+        "packageName": "default-package",
+        "packageRevision": "latest",
+        "runtime": {
+          "podType": "regular-m",
+          "concurrency": 10,
+          "runnerImage": "gcr.io/viewo-g/piper/agent/runner/cpu/clip-search:0.1.0",
+          "singleAgent": false,
+          "autoscaler": {
+            "type": "rabbitmq",
+            "minReplicas": 0,
+            "maxReplicas": 2,
+            "queueLength": 100
+          },
+          "preemptible": false
+        },
+        "executionTimeout": 3600,
+        "drainTime": 600,
+        "onReset": "failed",
+        "runExecutionAsProcess": false,
+        "maxAttempts": 3
+      }
+    ],
+    "triggers": [
+      {
+        "name": "extract-clip-on-item",
+        "active": true,
+        "type": "Event",
+        "namespace": "services.clip-extraction",
+        "spec": {
+          "filter": {},
+          "executionMode": "Always",
+          "resource": "Item",
+          "actions": [
+            "Created"
+          ],
+          "input": {},
+          "operation": {
+            "type": "function",
+            "functionName": "extract_item"
+          }
+        }
+      }
+    ]
+  }
+}
