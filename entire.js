@@ -3,63 +3,68 @@ async function run(textInput, itemsQuery) {
     let textModel
     let transformers
     let featureSetId
-    const default_query ={ filter: { $and: [{ hidden: false }, { type: 'file' }] }}
-    debugger
+    const default_query = { filter: { $and: [{ hidden: false }, { type: 'file' }] } }
     try {
         textInput = textInput['Text Box']
     }
-    catch(e){
-        dl.sendEvent({ name: "app:toastMessage",
-                payload: {
+    catch (e) {
+        dl.sendEvent({
+            name: "app:toastMessage",
+            payload: {
                 message: "For CLIP FeatureSet input text is required",
-                type: "error"}
-                })
+                type: "error"
+            }
+        })
         return default_query
-        }
+    }
 
-    try{
+    try {
         const item = await dl.items.getByName("/clip_feature_set.json", { binaries: true })
         featureSetId = item.metadata.system.clip_feature_set_id
     }
-    catch(e){
-              console.log(e)
-              dl.sendEvent({ name: "app:toastMessage",
-                payload: {
+    catch (e) {
+        console.log(e)
+        dl.sendEvent({
+            name: "app:toastMessage",
+            payload: {
                 message: "CLIP FeatureSet does not exist for this project, please run pre-process",
-                type: "error"}
-                })
-             return default_query
+                type: "error"
             }
-   const query_feature = {
-                        "filter": {
-                        "$and": [
-							{"hidden": false},
-							{"type": "file"}
-							]
-						},
-                        "resource": "items",
-                        "join": {
-                                "on": {
-                                    "resource": "feature_vectors",
-                                    "local": "entityId",
-                                    "forigen": "id"
-                                    },
-                                "filter": {
-                                    "featureSetId": featureSetId
-                                }
-                            }
-                        }
+        })
+        return default_query
+    }
+    const query_feature = {
+        "filter": {
+            "$and": [
+                { "hidden": false },
+                { "type": "file" }
+            ]
+        },
+        "resource": "items",
+        "join": {
+            "on": {
+                "resource": "feature_vectors",
+                "local": "entityId",
+                "forigen": "id"
+            },
+            "filter": {
+                "featureSetId": featureSetId
+            }
+        }
+    }
 
     const dataset = await dl.datasets.get()
     const items_count = dataset.itemsCount
     const items_with_feature_count = await dl.items.countByQuery(query_feature)
-    debugger
-    if (items_count !== items_with_feature_count){
-         dl.sendEvent({ name: "app:toastMessage",
-               payload: {
+    if (items_count !== items_with_feature_count) {
+        dl.sendEvent({
+            name: "app:toastMessage",
+            payload: {
                 message: "Feature extraction was not run on entire dataset, please run again!",
-                type: "warning"}
-    })}
+                type: "warning"
+            }
+        })
+    }
     console.log('loading dependencies')
     async function loadDependencies() {
         try {

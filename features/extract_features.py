@@ -6,6 +6,8 @@ import tqdm
 import time
 import clip
 from multiprocessing.pool import ThreadPool
+import concurrent.futures
+from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
 import json
 
@@ -22,6 +24,7 @@ class ClipExtractor(dl.BaseServiceRunner):
         self.model = model
         self.preprocess = preprocess
         self.feature_set = None
+        self.feature_vector_entities = list()
         self.create_feature_set(project=project)
 
     def create_feature_set(self, project: dl.Project):
@@ -36,22 +39,26 @@ class ClipExtractor(dl.BaseServiceRunner):
                                                       set_type='clip',
                                                       size=512)
             logger.info(f'Feature Set created! name: {feature_set.name}, id: {feature_set.id}')
-        self.feature_set = feature_set
-        binaries = project.datasets._get_binaries_dataset()
-        buffer = BytesIO()
-        buffer.write(json.dumps({}, default=lambda x: None).encode())
-        buffer.seek(0)
-        buffer.name = "clip_feature_set.json"
-        feature_set_item = binaries.items.upload(
-            local_path=buffer,
-            item_metadata={
-                "system": {
-                    "clip_feature_set_id": feature_set.id
+            binaries = project.datasets._get_binaries_dataset()
+            buffer = BytesIO()
+            buffer.write(json.dumps({}, default=lambda x: None).encode())
+            buffer.seek(0)
+            buffer.name = "clip_feature_set.json"
+            feature_set_item = binaries.items.upload(
+                local_path=buffer,
+                item_metadata={
+                    "system": {
+                        "clip_feature_set_id": feature_set.id
+                    }
                 }
-            }
-        )
+            )
+        self.feature_set = feature_set
+        self.feature_vector_entities = [fv.entity_id for fv in self.feature_set.features.list().all()]
 
     def extract_item(self, item: dl.Item) -> dl.Item:
+        if item.id in self.feature_vector_entities:
+            logger.info(f'Item {item.id} already has feature vector')
+            return item
         logger.info(f'Started on item id: {item.id}, filename: {item.filename}')
         tic = time.time()
         # assert False
@@ -64,22 +71,29 @@ class ClipExtractor(dl.BaseServiceRunner):
         logger.info(f'Done. runtime: {(time.time() - tic):.2f}[s]')
         return item
 
-    def extract_dataset(self, dataset: dl.Dataset, query=None):
+    def extract_dataset(self, dataset: dl.Dataset, query=None, progress=None):
         pages = dataset.items.list()
-        pbar = tqdm.tqdm(total=pages.items_count)
-        pool = ThreadPool(processes=32)
-        with torch.no_grad():
-            for item in pages.all():
-                pool.apply_async(self.extract_item, kwds={'item': item})
-                pbar.update()
-        pool.close()
-        pool.join()
-        pool.terminate()
+        with ThreadPoolExecutor() as executor:
+            futures = [executor.submit(self.extract_item, obj) for obj in pages.all()]
+            done_count = 0
+            previous_update = 0
+            while futures:
+                done, futures = concurrent.futures.wait(futures, return_when=concurrent.futures.FIRST_COMPLETED)
+                done_count += len(done)
+
+                current_progress = done_count * 100 // pages.items_count
+
+                if (current_progress // 10) % 10 > previous_update:
+                    previous_update = (current_progress // 10) % 10
+                    if progress is not None:
+                        progress.update(progress=previous_update * 10)
+                    else:
+                        logger.info(f'Extracted {done_count} out of {pages.items_count} items')
 
 
-# if __name__ == "__main__":
-#     project = dl.projects.get(project_name='COCO ors')
-#     context = {'project': project}
-#     app = ClipExtractor(project=project)
-#     dataset = dl.datasets.get(dataset_id='6592714c90f17656547ddb31')
-#     app.extract_dataset(dataset=dataset)
+if __name__ == "__main__":
+    project = dl.projects.get(project_name='')
+    context = {'project': project}
+    app = ClipExtractor(project=project)
+    dataset = dl.datasets.get(dataset_id='')
+    app.extract_dataset(dataset=dataset)
