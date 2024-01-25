@@ -36,7 +36,7 @@
               "invoke": {
                 "type": "script",
                 "namespace": "run",
-                "source": "https://raw.githubusercontent.com/dataloop-ai-apps/clip-smart-search-script/main/entire.js"
+                "source": "https://raw.githubusercontent.com/dataloop-ai-apps/clip-smart-search/main/entire.js"
               }
             }
           }
@@ -66,9 +66,6 @@
     "modules": [
       {
         "name": "extract_features",
-        "versions": {
-          "dtlpy": "1.88.13"
-        },
         "entryPoint": "features/extract_features.py",
         "className": "ClipExtractor",
         "functions": [
