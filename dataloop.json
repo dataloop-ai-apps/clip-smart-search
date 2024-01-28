@@ -117,7 +117,7 @@
         "packageName": "default-package",
         "packageRevision": "latest",
         "runtime": {
-          "podType": "regular-m",
+          "podType": "highmem-l",
           "concurrency": 10,
           "runnerImage": "gcr.io/viewo-g/piper/agent/runner/cpu/clip-search:0.1.0",
           "singleAgent": false,
