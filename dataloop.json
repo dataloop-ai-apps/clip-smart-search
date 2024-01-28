@@ -99,6 +99,12 @@
                 "name": "query"
               }
             ],
+            "output": [
+              {
+                "type": "Dataset",
+                "name": "dataset"
+              }
+            ],
             "displayName": "Clip Dataset Features"
           }
         ]
