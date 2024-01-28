@@ -86,11 +86,11 @@ class ClipExtractor(dl.BaseServiceRunner):
                         progress.update(progress=previous_update * 10)
                     else:
                         logger.info(f'Extracted {done_count} out of {pages.items_count} items')
+        return dataset
 
 
 if __name__ == "__main__":
     project = dl.projects.get(project_name='')
-    context = {'project': project}
     app = ClipExtractor(project=project)
     dataset = dl.datasets.get(dataset_id='')
     app.extract_dataset(dataset=dataset)
