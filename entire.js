@@ -23,13 +23,19 @@ async function run(textInput, itemsQuery) {
         featureSetId = item.metadata.system.clip_feature_set_id
     }
     catch (e) {
+        const dataset = await dl.datasets.get()
         console.log(e)
         dl.sendEvent({
             name: "app:toastMessage",
             payload: {
-                message: "CLIP FeatureSet does not exist for this project, please run pre-process",
-                type: "error"
+                message: "CLIP FeatureSet does not exist for this project, running pre-process",
+                type: "warning"
             }
+        })
+        const execution = await dl.executions.create({
+            functionName: 'extract_dataset',
+            serviceName: 'clip-extraction-item',
+            input: { dataset_id: dataset.id, query: null },
         })
         return default_query
     }
@@ -53,9 +59,9 @@ async function run(textInput, itemsQuery) {
         }
     }
 
-    const dataset = await dl.datasets.get()
     const items_count = dataset.itemsCount
     const items_with_feature_count = await dl.items.countByQuery(query_feature)
+    debugger
     if (items_count !== items_with_feature_count) {
         dl.sendEvent({
             name: "app:toastMessage",
