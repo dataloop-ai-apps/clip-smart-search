@@ -4,6 +4,11 @@
   "description": "",
   "version": "v0.1.13",
   "scope": "public",
+  "attributes": {
+    "Category": "Element",
+    "Provider": "Open AI",
+    "Element Type": "Model"
+  },
   "codebase": {
     "type": "git",
     "gitUrl": "https://github.com/dataloop-ai-apps/clip-smart-search",
