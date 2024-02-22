@@ -2,7 +2,7 @@
   "name": "clip-image-search",
   "displayName": "Clip Image Search",
   "description": "",
-  "version": "v0.1.13",
+  "version": "0.1.13",
   "scope": "public",
   "attributes": {
     "Category": "Element",
@@ -12,7 +12,7 @@
   "codebase": {
     "type": "git",
     "gitUrl": "https://github.com/dataloop-ai-apps/clip-smart-search",
-    "gitTag": "v0.1.13"
+    "gitTag": "0.1.13"
   },
   "components": {
     "panels": [
