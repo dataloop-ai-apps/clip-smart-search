@@ -1,7 +1,7 @@
 {
   "name": "clip-image-search",
   "displayName": "Clip Image Search",
-  "description": "",
+  "description": "CLIP Image search using NLP",
   "version": "0.1.14",
   "scope": "public",
   "attributes": {
@@ -119,26 +119,19 @@
       {
         "name": "clip-extraction",
         "moduleName": "extract_features",
-        "packageName": "default-package",
         "packageRevision": "latest",
         "runtime": {
           "podType": "highmem-l",
           "concurrency": 10,
           "runnerImage": "gcr.io/viewo-g/piper/agent/runner/cpu/clip-search:0.1.0",
-          "singleAgent": false,
           "autoscaler": {
             "type": "rabbitmq",
             "minReplicas": 0,
             "maxReplicas": 2,
             "queueLength": 100
-          },
-          "preemptible": false
+          }
         },
-        "executionTimeout": 3600,
-        "drainTime": 600,
-        "onReset": "failed",
-        "runExecutionAsProcess": false,
-        "maxAttempts": 3
+        "executionTimeout": 360000
       }
     ],
     "triggers": [
