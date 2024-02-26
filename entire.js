@@ -4,6 +4,7 @@ async function run(textInput, itemsQuery) {
     let transformers
     let featureSetId
     const default_query = { filter: { $and: [{ hidden: false }, { type: 'file' }] } }
+    const dataset = await dl.datasets.get()
     try {
         textInput = textInput['Text Box']
     }
@@ -23,7 +24,6 @@ async function run(textInput, itemsQuery) {
         featureSetId = item.metadata.system.clip_feature_set_id
     }
     catch (e) {
-        const dataset = await dl.datasets.get()
         console.log(e)
         dl.sendEvent({
             name: "app:toastMessage",
@@ -61,7 +61,6 @@ async function run(textInput, itemsQuery) {
 
     const items_count = dataset.itemsCount
     const items_with_feature_count = await dl.items.countByQuery(query_feature)
-    debugger
     if (items_count !== items_with_feature_count) {
         dl.sendEvent({
             name: "app:toastMessage",
