@@ -34,7 +34,7 @@ async function run(textInput, itemsQuery) {
         })
         const execution = await dl.executions.create({
             functionName: 'extract_dataset',
-            serviceName: 'clip-extraction-item',
+            serviceName: 'clip-extraction',
             input: { dataset_id: dataset.id, query: null },
         })
         return default_query
