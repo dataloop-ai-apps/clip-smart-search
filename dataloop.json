@@ -31,7 +31,7 @@
                       "props": {
                         "title": false,
                         "type": "string",
-                        "placeholder": "Write Text Here"
+                        "placeholder": "Natural language based search, e.g. “image with high brightness” or “images with red cars”"
                       },
                       "widget": "dl-input"
                     }
