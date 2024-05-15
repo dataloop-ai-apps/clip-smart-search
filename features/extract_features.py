@@ -1,3 +1,4 @@
+import tqdm
 from PIL import Image, ImageFile
 import dtlpy as dl
 import logging
@@ -20,9 +21,9 @@ class ClipExtractor(dl.BaseServiceRunner):
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.model, self.preprocess = clip.load("ViT-B/32", device=self.device)
         self.feature_set = None
+        self.feature_set_name = 'clip-feature-set'
         self.feature_vector_entities = list()
         self.create_feature_set(project=project)
-        self.feature_set_name = 'clip-feature-set'
 
     def create_feature_set(self, project: dl.Project):
         try:
@@ -79,6 +80,7 @@ class ClipExtractor(dl.BaseServiceRunner):
 
     def extract_dataset(self, dataset: dl.Dataset, query=None, progress=None):
         pages = dataset.items.list()
+        pbar = tqdm.tqdm(total=pages.items_count)
         with ThreadPoolExecutor() as executor:
             futures = [executor.submit(self.extract_item, obj) for obj in pages.all()]
             done_count = 0
@@ -86,7 +88,7 @@ class ClipExtractor(dl.BaseServiceRunner):
             while futures:
                 done, futures = concurrent.futures.wait(futures, return_when=concurrent.futures.FIRST_COMPLETED)
                 done_count += len(done)
-
+                pbar.update(len(done))
                 current_progress = done_count * 100 // pages.items_count
 
                 if (current_progress // 10) % 10 > previous_update:
@@ -99,7 +101,8 @@ class ClipExtractor(dl.BaseServiceRunner):
 
 
 if __name__ == "__main__":
-    project = dl.projects.get(project_name='')
+    dl.setenv('rc')
+    project = dl.projects.get(project_id='2cb9ae90-b6e8-4d15-9016-17bacc9b7bdf')
     app = ClipExtractor(project=project)
-    dataset = dl.datasets.get(dataset_id='')
+    dataset = dl.datasets.get(dataset_id='66445937b4cb9b520a45a7ab')
     app.extract_dataset(dataset=dataset)
