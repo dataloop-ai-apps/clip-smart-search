@@ -1,168 +1,178 @@
 {
-    "name": "clip-image-search",
-    "displayName": "Clip Image Search",
-    "description": "CLIP Image search using NLP",
-    "version": "0.1.18",
-    "scope": "public",
-    "attributes": {
-        "Category": "Application",
-        "Provider": "Open AI",
-        "Application Type": "Model"
-    },
-    "codebase": {
-        "type": "git",
-        "gitUrl": "https://github.com/dataloop-ai-apps/clip-smart-search",
-        "gitTag": "0.1.18"
-    },
-    "components": {
-        "panels": [
-            {
-                "name": "clip-smart-search",
-                "supportedSlots": [
+  "name": "clip-image-search",
+  "displayName": "Clip Image Search",
+  "description": "CLIP Image search using NLP",
+  "version": "0.1.18",
+  "scope": "public",
+  "attributes": {
+    "Category": "Application",
+    "Provider": "Open AI",
+    "Application Type": "Model"
+  },
+  "codebase": {
+    "type": "git",
+    "gitUrl": "https://github.com/dataloop-ai-apps/clip-smart-search",
+    "gitTag": "0.1.18"
+  },
+  "components": {
+    "panels": [
+      {
+        "name": "clip-smart-search",
+        "supportedSlots": [
+          {
+            "type": "datasetBrowserSearch",
+            "configuration": {
+              "layout": {
+                "schema": {
+                  "fields": [
                     {
-                        "type": "datasetBrowserSearch",
-                        "configuration": {
-                            "layout": {
-                                "schema": {
-                                    "fields": [
-                                        {
-                                            "name": "Text Box",
-                                            "title": "",
-                                            "props": {
-                                                "title": false,
-                                                "type": "string",
-                                                "placeholder": "Natural language based search, e.g. “image with high brightness” or “images with red cars”"
-                                            },
-                                            "widget": "dl-input"
-                                        }
-                                    ]
-                                }
-                            },
-                            "invoke": {
-                                "type": "script",
-                                "namespace": "run",
-                                "source": "https://raw.githubusercontent.com/dataloop-ai-apps/clip-smart-search/main/entire.js"
-                            }
-                        }
+                      "name": "Text Box",
+                      "title": "",
+                      "props": {
+                        "title": false,
+                        "type": "string",
+                        "placeholder": "Natural language based search, e.g. “image with high brightness” or “images with red cars”"
+                      },
+                      "widget": "dl-input"
                     }
-                ]
-            }
-        ],
-        "toolbars": [
-            {
-                "displayName": "NLP (CLIP)",
-                "icon": "icon-dl-models-management",
-                "location": "datasetBrowserSearchOption",
-                "invoke": {
-                    "type": "panel",
-                    "namespace": "clip-smart-search"
+                  ]
                 }
-            },
-            {
-                "displayName": "Clip Extract Features",
-                "invoke": {
-                    "type": "function",
-                    "namespace": "clip-extraction.extract_features.extract_dataset"
-                },
-                "location": "datasetBrowserApps",
-                "icon": "icon-dl-edit"
+              },
+              "invoke": {
+                "type": "script",
+                "namespace": "run",
+                "source": "https://raw.githubusercontent.com/dataloop-ai-apps/clip-smart-search/main/entire.js"
+              }
             }
-        ],
-        "modules": [
-            {
-                "name": "extract_features",
-                "entryPoint": "features/extract_features.py",
-                "className": "ClipExtractor",
-                "functions": [
-                    {
-                        "name": "extract_item",
-                        "description": "Extract CLIP features on a single item",
-                        "input": [
-                            {
-                                "type": "Item",
-                                "name": "item"
-                            }
-                        ],
-                        "output": [
-                            {
-                                "type": "Item",
-                                "name": "item"
-                            }
-                        ],
-                        "displayName": "Clip Features"
-                    },
-                    {
-                        "name": "extract_dataset",
-                        "description": "Extract CLIP features on a single item",
-                        "input": [
-                            {
-                                "type": "Dataset",
-                                "name": "dataset"
-                            },
-                            {
-                                "type": "Json",
-                                "name": "query"
-                            }
-                        ],
-                        "output": [
-                            {
-                                "type": "Dataset",
-                                "name": "dataset"
-                            }
-                        ],
-                        "displayName": "Clip Dataset Features"
-                    }
-                ]
-            }
-        ],
-        "services": [
-            {
-                "name": "clip-extraction",
-                "moduleName": "extract_features",
-                "packageRevision": "latest",
-                "runtime": {
-                    "podType": "highmem-l",
-                    "concurrency": 10,
-                    "runnerImage": "gcr.io/viewo-g/piper/agent/runner/cpu/clip-search:0.1.0",
-                    "autoscaler": {
-                        "type": "rabbitmq",
-                        "minReplicas": 0,
-                        "maxReplicas": 2,
-                        "queueLength": 100
-                    }
-                },
-                "executionTimeout": 360000
-            }
-        ],
-        "triggers": [
-            {
-                "name": "extract-clip-on-item",
-                "active": true,
-                "type": "Event",
-                "namespace": "services.clip-extraction",
-                "spec": {
-                    "filter": {
-                        "$and": [
-                            {
-                                "hidden": false
-                            },
-                            {
-                                "type": "file"
-                            }
-                        ]
-                    },
-                    "executionMode": "Always",
-                    "resource": "Item",
-                    "actions": [
-                        "Created"
-                    ],
-                    "input": {},
-                    "operation": {
-                        "type": "function",
-                        "functionName": "extract_item"
-                    }
-                }
-            }
+          }
         ]
-    }
+      }
+    ],
+    "toolbars": [
+      {
+        "displayName": "NLP (CLIP)",
+        "icon": "icon-dl-models-management",
+        "location": "datasetBrowserSearchOption",
+        "invoke": {
+          "type": "panel",
+          "namespace": "clip-smart-search"
+        }
+      },
+      {
+        "displayName": "Clip Extract Features",
+        "invoke": {
+          "type": "function",
+          "namespace": "clip-extraction.extract_features.extract_dataset"
+        },
+        "location": "datasetBrowserApps",
+        "icon": "icon-dl-edit"
+      }
+    ],
+    "modules": [
+      {
+        "name": "extract_features",
+        "entryPoint": "features/extract_features.py",
+        "className": "ClipExtractor",
+        "functions": [
+          {
+            "name": "extract_item",
+            "description": "Extract CLIP features on a single item",
+            "input": [
+              {
+                "type": "Item",
+                "name": "item"
+              }
+            ],
+            "output": [
+              {
+                "type": "Item",
+                "name": "item"
+              }
+            ],
+            "displayName": "Clip Features"
+          },
+          {
+            "name": "extract_dataset",
+            "description": "Extract CLIP features on a single item",
+            "input": [
+              {
+                "type": "Dataset",
+                "name": "dataset"
+              },
+              {
+                "type": "Json",
+                "name": "query"
+              }
+            ],
+            "output": [
+              {
+                "type": "Dataset",
+                "name": "dataset"
+              }
+            ],
+            "displayName": "Clip Dataset Features"
+          }
+        ]
+      }
+    ],
+    "services": [
+      {
+        "name": "clip-extraction",
+        "moduleName": "extract_features",
+        "packageRevision": "latest",
+        "runtime": {
+          "podType": "highmem-l",
+          "concurrency": 10,
+          "runnerImage": "gcr.io/viewo-g/piper/agent/runner/cpu/clip-search:0.1.0",
+          "autoscaler": {
+            "type": "rabbitmq",
+            "minReplicas": 0,
+            "maxReplicas": 2,
+            "queueLength": 100
+          }
+        },
+        "executionTimeout": 360000
+      }
+    ],
+    "triggers": [
+      {
+        "name": "extract-clip-on-item",
+        "active": true,
+        "type": "Event",
+        "namespace": "services.clip-extraction",
+        "spec": {
+          "filter": {
+            "$and": [
+              {
+                "$or": [
+                  {
+                    "metadata.system.mimetype": "image/*"
+                  },
+                  {
+                    "metadata.system.mimetype": "text/*"
+                  }
+                ]
+              },
+              {
+                "hidden": false
+              },
+              {
+                "type": "file"
+              }
+            ]
+          },
+          "executionMode": "Always",
+          "resource": "Item",
+          "actions": [
+            "Created"
+          ],
+          "input": {},
+          "operation": {
+            "type": "function",
+            "functionName": "extract_item"
+          }
+        }
+      }
+    ]
+  }
 }
