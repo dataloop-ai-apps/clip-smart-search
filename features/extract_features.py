@@ -22,14 +22,15 @@ class ClipExtractor(dl.BaseServiceRunner):
         self.feature_set = None
         self.feature_vector_entities = list()
         self.create_feature_set(project=project)
+        self.feature_set_name = 'clip-feature-set'
 
     def create_feature_set(self, project: dl.Project):
         try:
-            feature_set = project.feature_sets.get(feature_set_name='clip-feature-set')
+            feature_set = project.feature_sets.get(feature_set_name=self.feature_set_name)
             logger.info(f'Feature Set found! name: {feature_set.name}, id: {feature_set.id}')
         except dl.exceptions.NotFound:
             logger.info('Feature Set not found. creating...')
-            feature_set = project.feature_sets.create(name='clip-feature-set',
+            feature_set = project.feature_sets.create(name=self.feature_set_name,
                                                       entity_type=dl.FeatureEntityType.ITEM,
                                                       project_id=project.id,
                                                       set_type='clip',
@@ -58,11 +59,19 @@ class ClipExtractor(dl.BaseServiceRunner):
         logger.info(f'Started on item id: {item.id}, filename: {item.filename}')
         tic = time.time()
         # assert False
-        orig_image = Image.fromarray(item.download(save_locally=False, to_array=True))
-        # orig_image = Image.open(filepath)
-        image = self.preprocess(orig_image).unsqueeze(0).to(self.device)
-        image_features = self.model.encode_image(image)
-        output = image_features[0].cpu().detach().numpy().tolist()
+        if 'image/' in item.mimetype:
+            orig_image = Image.fromarray(item.download(save_locally=False, to_array=True))
+            # orig_image = Image.open(filepath)
+            image = self.preprocess(orig_image).unsqueeze(0).to(self.device)
+            features = self.model.encode_image(image)
+        elif 'text/' in item.mimetype:
+            text = item.download(save_locally=False).read().decode()
+            # TODO get the length of input text currently hardcoded to 200
+            tokens = clip.tokenize([text[:200]], context_length=77).to(self.device)
+            features = self.model.encode_text(tokens)
+        else:
+            raise ValueError(f'Unsupported mimetype for clip: {item.mimetype}')
+        output = features[0].cpu().detach().numpy().tolist()
         self.feature_set.features.create(value=output, entity=item)
         logger.info(f'Done. runtime: {(time.time() - tic):.2f}[s]')
         self.feature_vector_entities.append(item.id)
