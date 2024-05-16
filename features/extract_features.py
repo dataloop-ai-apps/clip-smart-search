@@ -79,7 +79,11 @@ class ClipExtractor(dl.BaseServiceRunner):
         return item
 
     def extract_dataset(self, dataset: dl.Dataset, query=None, progress=None):
-        pages = dataset.items.list()
+        filters = dl.Filters()
+        filters.add(field='metadata.system.mimetype', values="image/*", method=dl.FILTERS_METHOD_OR)
+        filters.add(field='metadata.system.mimetype', values="text/*", method=dl.FILTERS_METHOD_OR)
+
+        pages = dataset.items.list(filters=filters)
         pbar = tqdm.tqdm(total=pages.items_count)
         with ThreadPoolExecutor() as executor:
             futures = [executor.submit(self.extract_item, obj) for obj in pages.all()]
