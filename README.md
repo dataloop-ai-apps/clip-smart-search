@@ -1,4 +1,8 @@
-# Clip Smart Search
+# Semantic (CLIP)
+
+The Semantic (CLIP) application is a text based search for images and text files in a dataset that uses the CLIP model.
+
+The application generates embeddings that are used to search based on similarity with the text queries.
 
 ## Model Details
 
@@ -11,11 +15,11 @@ first need to carefully study their capabilities in relation to the specific con
 
 ### App installation:
 
-There are multiple ways to install the CLIP smart search application:
+There are multiple ways to install the Semantic (CLIP) application:
 
 1. **From the Market Place**:
     - Go to the MarketPlace
-    - Search for the CLIP Smart Search application
+    - Search for the Semantic (CLIP) application
     - Click on the application and click install button on the right hand side
 
 ![market place clip installation image](assets/market_place_clip.png)
@@ -23,7 +27,7 @@ There are multiple ways to install the CLIP smart search application:
 2. **From the Dataset browser**:
     - Go to the dataset browser
     - Click on the `Add Filters` button.
-    - Find the NLP (CLIP) application in the dropdown menu.
+    - Find the `Semantic (CLIP)` application in the dropdown menu.
     - Click on Install App button.
 
 ![dataset clip installation image](assets/dataset_clip.png)
@@ -56,7 +60,8 @@ Currently, the application supports the following mimetypes:
 
 Once the preprocessing is done, you can search for images using the search bar. The search bar supports text search.
 
-You can install the Search bar by clicking on the `Add Filters` button in the dataset browser and selecting `NLP (CLIP)`
+You can install the Search bar by clicking on the `Add Filters` button in the dataset browser and
+selecting `Semantic (CLIP)`
 App.
 
 ![clip search bar](assets/clip_search_bar.png)
