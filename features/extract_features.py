@@ -85,6 +85,8 @@ class ClipExtractor(dl.BaseServiceRunner):
             filters.add(field='metadata.system.mimetype', values="text/*", method=dl.FILTERS_METHOD_OR)
         else:
             filters = dl.Filters(custom_filter=query)
+            if filters.context is None:
+                filters.context = {"datasets": [dataset.id]}
 
         pages = dataset.items.list(filters=filters)
         pbar = tqdm.tqdm(total=pages.items_count)
