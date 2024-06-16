@@ -65,7 +65,7 @@ class MyTestCase(unittest.TestCase):
         )
         return item
 
-    # Perdict function
+    # Extract functions
     def _perform_extract_item(self, item_type: ItemTypes, item_name: str):
         # Upload item
         item = self.prepare_item_function[item_type.value](self=self, item_name=item_name)
@@ -104,16 +104,34 @@ class MyTestCase(unittest.TestCase):
         item = execution.output
         return item
 
+    def _perform_extract_dataset(self):
+        pass
+
     # Test functions
     def test_extract_item(self):
+        # Delete previous features
+        feature_set = self.project.feature_sets.get(feature_set_name=self.feature_set_name)
+        all_features = list(feature_set.features.list().all())
+        for feature in all_features:
+            feature_set.features.delete(feature_id=feature.id)
+
         item_name = "car_image.jpeg"
         item_type = ItemTypes.IMAGE
-        # extract_item = self._perform_extract_item(item_type=item_type, item_name=item_name)
-        # self.assertTrue(isinstance(extract_item, dict))
-        # extract_item = self.dataset.items.get(item_id=extract_item.get('item_id', None))
-        # print(extract_item)
-        feature_set = self.project.feature_sets.get(feature_set_name=self.feature_set_name)
-        print(feature_set)
+        extract_item = self._perform_extract_item(item_type=item_type, item_name=item_name)
+
+        # Validate that the output is an item
+        self.assertTrue(isinstance(extract_item, dict))
+        extract_item = self.dataset.items.get(item_id=extract_item.get('item_id', None))
+        self.assertTrue(isinstance(extract_item, dl.Item))
+
+        # Validate that the feature for the item was created
+        filters = dl.Filters(resource=dl.FiltersResource.FEATURE)
+        filters.add(field="entityId", values=extract_item.id)
+        feature_vector_entity = feature_set.features.list(filters=filters)
+        self.assertTrue(feature_vector_entity.items_count == 1)
+
+    def test_extract_dataset(self):
+        pass
 
 
 if __name__ == '__main__':
