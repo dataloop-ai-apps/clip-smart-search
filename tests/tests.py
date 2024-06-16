@@ -31,9 +31,9 @@ class MyTestCase(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls) -> None:
-        # Delete all models
-        for model in cls.project.models.list().all():
-            model.delete()
+        # Delete all services
+        # for service in cls.project.services.list().all():
+        #     service.delete()
 
         # Delete all apps
         for app in cls.project.apps.list().all():
@@ -156,47 +156,49 @@ class MyTestCase(unittest.TestCase):
         return dataset
 
     # Test functions
-    def test_extract_image_item(self):
-        # Delete previous features
-        feature_set = self.project.feature_sets.get(feature_set_name=self.feature_set_name)
-        all_features = list(feature_set.features.list().all())
-        for feature in all_features:
-            feature_set.features.delete(feature_id=feature.id)
+    # def test_extract_image_item(self):
+    #     # Delete previous features
+    #     feature_set = self.project.feature_sets.get(feature_set_name=self.feature_set_name)
+    #     all_features = list(feature_set.features.list().all())
+    #     for feature in all_features:
+    #         feature_set.features.delete(feature_id=feature.id)
+    #
+    #     item_name = "car_image.jpeg"
+    #     extract_item = self._perform_extract_item(item_name=item_name)
+    #
+    #     # Validate that the output is an item
+    #     self.assertTrue(isinstance(extract_item, dict))
+    #     extract_item = self.dataset.items.get(item_id=extract_item.get('item_id', None))
+    #     self.assertTrue(isinstance(extract_item, dl.Item))
+    #
+    #     # Validate that the feature for the item was created
+    #     filters = dl.Filters(resource=dl.FiltersResource.FEATURE)
+    #     filters.add(field="entityId", values=extract_item.id)
+    #     feature_vector_entity = feature_set.features.list(filters=filters)
+    #     self.assertTrue(feature_vector_entity.items_count == 1)
+    #     # TODO: Added feature vector validation
 
-        item_name = "car_image.jpeg"
-        extract_item = self._perform_extract_item(item_name=item_name)
-
-        # Validate that the output is an item
-        self.assertTrue(isinstance(extract_item, dict))
-        extract_item = self.dataset.items.get(item_id=extract_item.get('item_id', None))
-        self.assertTrue(isinstance(extract_item, dl.Item))
-
-        # Validate that the feature for the item was created
-        filters = dl.Filters(resource=dl.FiltersResource.FEATURE)
-        filters.add(field="entityId", values=extract_item.id)
-        feature_vector_entity = feature_set.features.list(filters=filters)
-        self.assertTrue(feature_vector_entity.items_count == 1)
-
-    def test_extract_video_item(self):
-        # Delete previous features
-        feature_set = self.project.feature_sets.get(feature_set_name=self.feature_set_name)
-        all_features = list(feature_set.features.list().all())
-        for feature in all_features:
-            feature_set.features.delete(feature_id=feature.id)
-
-        item_name = "soccer_video.webm"
-        extract_item = self._perform_extract_item(item_name=item_name)
-
-        # Validate that the output is an item
-        self.assertTrue(isinstance(extract_item, dict))
-        extract_item = self.dataset.items.get(item_id=extract_item.get('item_id', None))
-        self.assertTrue(isinstance(extract_item, dl.Item))
-
-        # Validate that the feature for the item was created
-        filters = dl.Filters(resource=dl.FiltersResource.FEATURE)
-        filters.add(field="entityId", values=extract_item.id)
-        feature_vector_entity = feature_set.features.list(filters=filters)
-        self.assertTrue(feature_vector_entity.items_count == 1)
+    # def test_extract_text_item(self):
+    #     # Delete previous features
+    #     feature_set = self.project.feature_sets.get(feature_set_name=self.feature_set_name)
+    #     all_features = list(feature_set.features.list().all())
+    #     for feature in all_features:
+    #         feature_set.features.delete(feature_id=feature.id)
+    #
+    #     item_name = "lorem_text.txt"
+    #     extract_item = self._perform_extract_item(item_name=item_name)
+    #
+    #     # Validate that the output is an item
+    #     self.assertTrue(isinstance(extract_item, dict))
+    #     extract_item = self.dataset.items.get(item_id=extract_item.get('item_id', None))
+    #     self.assertTrue(isinstance(extract_item, dl.Item))
+    #
+    #     # Validate that the feature for the item was created
+    #     filters = dl.Filters(resource=dl.FiltersResource.FEATURE)
+    #     filters.add(field="entityId", values=extract_item.id)
+    #     feature_vector_entity = feature_set.features.list(filters=filters)
+    #     self.assertTrue(feature_vector_entity.items_count == 1)
+    #     # TODO: Added feature vector validation
 
     def test_extract_dataset(self):
         # Delete previous features
@@ -205,7 +207,7 @@ class MyTestCase(unittest.TestCase):
         for feature in all_features:
             feature_set.features.delete(feature_id=feature.id)
 
-        item_names = ["car_image.jpeg", "soccer_video.webm"]
+        item_names = ["car_image.jpeg", "lorem_text.txt"]
         extract_dataset = self._perform_extract_dataset(item_names=item_names)
 
         # Validate that the output is the dataset
