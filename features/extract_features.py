@@ -87,6 +87,8 @@ class ClipExtractor(dl.BaseServiceRunner):
             filters = dl.Filters(custom_filter=query)
             if filters.context is None:
                 filters.context = {"datasets": [dataset.id]}
+            else:
+                filters.context["datasets"] = [dataset.id]
 
         pages = dataset.items.list(filters=filters)
         pbar = tqdm.tqdm(total=pages.items_count)

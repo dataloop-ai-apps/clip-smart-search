@@ -31,10 +31,6 @@ class MyTestCase(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls) -> None:
-        # Delete all services
-        # for service in cls.project.services.list().all():
-        #     service.delete()
-
         # Delete all apps
         for app in cls.project.apps.list().all():
             if app.project.id == cls.project.id:
@@ -132,6 +128,8 @@ class MyTestCase(unittest.TestCase):
 
         filters = dl.Filters()
         filters.add(field="dir", values=dataset_test_path)
+        filters_json = filters.prepare()
+        filters_json["dataset"] = {"dataset_id": self.dataset.id}
         execution = service.execute(
             execution_input=[
                 dl.FunctionIO(
@@ -142,7 +140,7 @@ class MyTestCase(unittest.TestCase):
                 dl.FunctionIO(
                     name="query",
                     type=dl.PackageInputType.JSON,
-                    value=filters.prepare()
+                    value=filters_json
                 )
             ],
             project_id=self.project.id,
