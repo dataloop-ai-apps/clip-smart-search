@@ -79,9 +79,12 @@ class ClipExtractor(dl.BaseServiceRunner):
         return item
 
     def extract_dataset(self, dataset: dl.Dataset, query=None, progress=None):
-        filters = dl.Filters()
-        filters.add(field='metadata.system.mimetype', values="image/*", method=dl.FILTERS_METHOD_OR)
-        filters.add(field='metadata.system.mimetype', values="text/*", method=dl.FILTERS_METHOD_OR)
+        if query is None:
+            filters = dl.Filters()
+            filters.add(field='metadata.system.mimetype', values="image/*", method=dl.FILTERS_METHOD_OR)
+            filters.add(field='metadata.system.mimetype', values="text/*", method=dl.FILTERS_METHOD_OR)
+        else:
+            filters = dl.Filters(custom_filter=query)
 
         pages = dataset.items.list(filters=filters)
         pbar = tqdm.tqdm(total=pages.items_count)
