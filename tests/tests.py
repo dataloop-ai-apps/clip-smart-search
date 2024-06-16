@@ -133,7 +133,7 @@ class MyTestCase(unittest.TestCase):
         execution = service.execute(
             execution_input=[
                 dl.FunctionIO(
-                    name="item",
+                    name="dataset",
                     type=dl.PackageInputType.DATASET,
                     value=self.dataset.id
                 ),
