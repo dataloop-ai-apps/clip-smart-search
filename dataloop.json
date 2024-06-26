@@ -1,6 +1,6 @@
 {
   "name": "clip-image-search",
-  "displayName": "Clip Image Search",
+  "displayName": "Semantic (CLIP)",
   "description": "CLIP Image search using NLP",
   "version": "0.1.20",
   "scope": "public",
@@ -50,7 +50,7 @@
     ],
     "toolbars": [
       {
-        "displayName": "NLP (CLIP)",
+        "displayName": "Semantic (CLIP)",
         "icon": "icon-dl-models-management",
         "location": "datasetBrowserSearchOption",
         "invoke": {
