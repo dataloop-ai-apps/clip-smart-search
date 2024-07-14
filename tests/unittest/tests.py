@@ -12,16 +12,14 @@ DATASET_NAME = "CLIP-Semantic-Tests"
 class MyTestCase(unittest.TestCase):
     project: dl.Project = None
     dataset: dl.Dataset = None
-    root_path: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    tests_data_path: str = os.path.join(root_path, 'tests', 'example_data')
+    assets_folder: str = os.path.join('tests', 'assets', 'unittest')
+    dataset_folder: str = os.path.join(assets_folder, 'datasets', 'example_data')
     prepare_item_function = dict()
 
     @classmethod
     def setUpClass(cls) -> None:
         dl.setenv('rc')
-        os.chdir(cls.root_path)
-        if dl.token_expired():
-            dl.login_m2m(email=BOT_EMAIL, password=BOT_PWD)
+        dl.login_m2m(email=BOT_EMAIL, password=BOT_PWD)
         cls.project = dl.projects.get(project_id=PROJECT_ID)
         try:
             cls.dataset = cls.project.datasets.get(dataset_name=DATASET_NAME)
@@ -46,7 +44,7 @@ class MyTestCase(unittest.TestCase):
 
     # Item preparation functions
     def _prepare_item(self, item_name: str, remote_path: str = None):
-        local_path = os.path.join(self.tests_data_path, item_name)
+        local_path = os.path.join(self.dataset_folder, item_name)
         if remote_path is None:
             remote_path = "/"
         item = self.dataset.items.upload(
@@ -62,7 +60,7 @@ class MyTestCase(unittest.TestCase):
         item = self._prepare_item(item_name=item_name)
 
         # Open dataloop json
-        dataloop_json_filepath = os.path.join(self.root_path, 'dataloop.json')
+        dataloop_json_filepath = 'dataloop.json'
         with open(dataloop_json_filepath, 'r', encoding="utf8") as f:
             dataloop_json = json.load(f)
         dataloop_json.pop('codebase')
@@ -107,7 +105,7 @@ class MyTestCase(unittest.TestCase):
             items.append(item)
 
         # Open dataloop json
-        dataloop_json_filepath = os.path.join(self.root_path, 'dataloop.json')
+        dataloop_json_filepath = 'dataloop.json'
         with open(dataloop_json_filepath, 'r', encoding="utf8") as f:
             dataloop_json = json.load(f)
         dataloop_json.pop('codebase')
