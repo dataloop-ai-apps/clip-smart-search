@@ -131,7 +131,7 @@ class TestUtils:
         dpk_json_filepath = None
         for manifest in self.dataloop_cfg.get("manifests", list()):
             dpk_json_filepath = manifest
-            with open(dpk_json_filepath, 'r') as f:
+            with open(dpk_json_filepath, 'r', encoding='utf-8') as f:
                 dpk_json = json.load(f)
             if dpk_json["name"] == dpk_name:
                 break
@@ -212,7 +212,7 @@ class TestUtils:
         )
 
         # Get service
-        services = self.project.models.list(filters=filters)
+        services = self.project.services.list(filters=filters)
         if isinstance(services, dl.entities.PagedEntities):
             services = list(services.all())
         return services
