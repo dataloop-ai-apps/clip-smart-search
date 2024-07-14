@@ -5,9 +5,9 @@
   ],
   "startNodes": [
     {
-      "nodeId": "65e4b8a9-e189-418b-81b5-1b05d6459903",
+      "nodeId": "53ed006d-a98d-488a-8aec-e4980408e538",
       "type": "root",
-      "id": "bf40c5d8-4e41-4a87-946f-6d1c647c860d"
+      "id": "6e6c4f7a-a874-468b-af03-b7389dd6fe84"
     }
   ],
   "variables": [
@@ -23,15 +23,15 @@
     }
   ],
   "description": "",
-  "name": "CLIP-Item",
+  "name": "CLIP-Dataset",
   "templateKind": "org",
   "nodes": [
     {
-      "id": "65e4b8a9-e189-418b-81b5-1b05d6459903",
+      "id": "53ed006d-a98d-488a-8aec-e4980408e538",
       "inputs": [
         {
-          "portId": "a30bde28-d148-45de-a1f2-bdf38d0b9662",
-          "nodeId": "a30bde28-d148-45de-a1f2-bdf38d0b9662",
+          "portId": "70655202-45ab-495b-9ef3-a6034f66311d",
+          "nodeId": "70655202-45ab-495b-9ef3-a6034f66311d",
           "type": "Dataset",
           "name": "dataset",
           "displayName": "dataset",
@@ -39,8 +39,8 @@
           "io": "input"
         },
         {
-          "portId": "399b6426-52c0-45c8-b37a-5eb27f1f1082",
-          "nodeId": "399b6426-52c0-45c8-b37a-5eb27f1f1082",
+          "portId": "19fdda69-5aa6-4e38-a4f0-3006da6066b3",
+          "nodeId": "19fdda69-5aa6-4e38-a4f0-3006da6066b3",
           "type": "Service",
           "name": "service",
           "displayName": "service",
@@ -62,7 +62,7 @@
       "projectId": null,
       "config": {
         "package": {
-          "code": "import dtlpy as dl\n\n\nclass ServiceRunner:\n    @staticmethod\n    def run(dataset: dl.Dataset, service: dl.Service):\n        # Define filters\n        filters = dl.Filters()\n        filters.add(field=\"dir\", values=\"/sub_folder\")\n\n        # Execute service\n        execution = service.execute(\n            execution_input=[\n                dl.FunctionIO(\n                    name=\"dataset\",\n                    type=dl.PackageInputType.DATASET,\n                    value=dataset.id\n                ),\n                dl.FunctionIO(\n                    name=\"query\",\n                    type=dl.PackageInputType.JSON,\n                    value=filters.prepare()\n                )\n            ],\n            project_id=dataset.project.id,\n            function_name=\"extract_dataset\"\n        )\n\n        # Wait for service execution to finish\n        execution = execution.wait()\n        if execution.latest_status[\"status\"] != dl.ExecutionStatus.SUCCESS:\n            raise ValueError(\n                f\"Service execution '{execution.id}' failed with status: '{service.status}'\"\n            )\n\n        # Validate execution output\n        execution_output = execution.output\n        assert isinstance(execution_output, dict)\n        dataset_id = execution_output.get(\"dataset_id\", None)\n        assert dataset_id == dataset.id\n\n        # Get tested items\n        tested_items_ids = list()\n        pages = dataset.items.list(filters=filters)\n        items_count = pages.items_count\n        for page in pages:\n            for item in page:\n                tested_items_ids.append(item.id)\n\n        # Get the newly created features\n        feature_set_name = 'clip-feature-set'\n        feature_set = dataset.project.feature_sets.get(feature_set_name=feature_set_name)\n        filters = dl.Filters(resource=dl.FiltersResource.FEATURE)\n        filters.add(field=\"entityId\", values=tested_items_ids, operator=dl.FiltersOperations.IN)\n        pages = feature_set.features.list(filters=filters)\n        features_count = pages.items_count\n\n        # Validations\n        assert features_count == items_count\n        for page in pages:\n            for feature in page:\n                assert feature.entity_id in tested_items_ids\n                assert isinstance(feature.value, list)\n                assert len(feature.value) == 512\n        print(\"Service execution completed successfully!\")\n",
+          "code": "import dtlpy as dl\n\n\nclass ServiceRunner:\n    @staticmethod\n    def run(dataset: dl.Dataset, service: dl.Service):\n        # Define filters\n        filters = dl.Filters()\n        filters.add(field=\"dir\", values=\"/sub_folder\")\n\n        # Execute service\n        execution = service.execute(\n            execution_input=[\n                dl.FunctionIO(\n                    name=\"dataset\",\n                    type=dl.PackageInputType.DATASET,\n                    value=dataset.id\n                ),\n                dl.FunctionIO(\n                    name=\"query\",\n                    type=dl.PackageInputType.JSON,\n                    value=filters.prepare()\n                )\n            ],\n            project_id=dataset.project.id,\n            function_name=\"extract_dataset\"\n        )\n\n        # Wait for service execution to finish\n        execution = execution.wait()\n        if execution.latest_status[\"status\"] != dl.ExecutionStatus.SUCCESS:\n            raise ValueError(\n                f\"Service execution '{execution.id}' failed with status: '{service.status}'\"\n            )\n\n        # Validate execution output\n        execution_output = execution.output\n        assert isinstance(execution_output, dict)\n        dataset_id = execution_output.get(\"dataset_id\", None)\n        assert dataset_id == dataset.id\n\n        # Get tested items\n        tested_items_ids = list()\n        pages = dataset.items.list(filters=filters)\n        items_count = pages.items_count\n        for page in pages:\n            for item in page:\n                tested_items_ids.append(item.id)\n\n        # Get the newly created features\n        feature_set_name = 'clip-feature-set'\n        feature_set = dataset.project.feature_sets.get(feature_set_name=feature_set_name)\n        filters = dl.Filters(resource=dl.FiltersResource.FEATURE)\n        filters.add(field=\"entityId\", values=tested_items_ids, operator=dl.FiltersOperations.IN)\n        features = feature_set.features.list(filters=filters)\n        features_count = features.items_count\n\n        # Validations\n        assert features_count == items_count\n        for feature in features:\n            assert feature.entity_id in tested_items_ids\n            assert isinstance(feature.value, list)\n            assert len(feature.value) == 512\n        print(\"Service execution completed successfully!\")\n",
           "name": "run",
           "type": "code",
           "codebase": {
@@ -80,6 +80,6 @@
       }
     }
   ],
-  "preview": "6693c9f42e4faf2d0b73471a",
-  "_id": "6693ca052e4faf987373474c"
+  "preview": "6693aef87bca9b4cfdf0fce0",
+  "_id": "6693b1522e4faf9475730746"
 }
