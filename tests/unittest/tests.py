@@ -149,52 +149,64 @@ class MyTestCase(unittest.TestCase):
         # Execution output format:
         # {"dataset_id": dataset_id}
         dataset = execution.output
-        return dataset
+        return dataset, filters
 
     # Test functions
-    # def test_extract_image_item(self):
-    #     # Delete previous features
-    #     feature_set = self.project.feature_sets.get(feature_set_name=self.feature_set_name)
-    #     all_features = list(feature_set.features.list().all())
-    #     for feature in all_features:
-    #         feature_set.features.delete(feature_id=feature.id)
-    #
-    #     item_name = "car_image.jpeg"
-    #     extract_item = self._perform_extract_item(item_name=item_name)
-    #
-    #     # Validate that the output is an item
-    #     self.assertTrue(isinstance(extract_item, dict))
-    #     extract_item = self.dataset.items.get(item_id=extract_item.get('item_id', None))
-    #     self.assertTrue(isinstance(extract_item, dl.Item))
-    #
-    #     # Validate that the feature for the item was created
-    #     filters = dl.Filters(resource=dl.FiltersResource.FEATURE)
-    #     filters.add(field="entityId", values=extract_item.id)
-    #     feature_vector_entity = feature_set.features.list(filters=filters)
-    #     self.assertTrue(feature_vector_entity.items_count == 1)
-    #     # TODO: Added feature vector validation
+    def test_extract_image_item(self):
+        # Delete previous features
+        feature_set = self.project.feature_sets.get(feature_set_name=self.feature_set_name)
+        all_features = list(feature_set.features.list().all())
+        for feature in all_features:
+            feature_set.features.delete(feature_id=feature.id)
 
-    # def test_extract_text_item(self):
-    #     # Delete previous features
-    #     feature_set = self.project.feature_sets.get(feature_set_name=self.feature_set_name)
-    #     all_features = list(feature_set.features.list().all())
-    #     for feature in all_features:
-    #         feature_set.features.delete(feature_id=feature.id)
-    #
-    #     item_name = "lorem_text.txt"
-    #     extract_item = self._perform_extract_item(item_name=item_name)
-    #
-    #     # Validate that the output is an item
-    #     self.assertTrue(isinstance(extract_item, dict))
-    #     extract_item = self.dataset.items.get(item_id=extract_item.get('item_id', None))
-    #     self.assertTrue(isinstance(extract_item, dl.Item))
-    #
-    #     # Validate that the feature for the item was created
-    #     filters = dl.Filters(resource=dl.FiltersResource.FEATURE)
-    #     filters.add(field="entityId", values=extract_item.id)
-    #     feature_vector_entity = feature_set.features.list(filters=filters)
-    #     self.assertTrue(feature_vector_entity.items_count == 1)
-    #     # TODO: Added feature vector validation
+        item_name = "car_image.jpeg"
+        extract_item = self._perform_extract_item(item_name=item_name)
+
+        # Validate that the output is an item
+        self.assertTrue(isinstance(extract_item, dict))
+        extract_item = self.dataset.items.get(item_id=extract_item.get('item_id', None))
+        self.assertTrue(isinstance(extract_item, dl.Item))
+
+        # Validate that the feature for the item was created
+        filters = dl.Filters(resource=dl.FiltersResource.FEATURE)
+        filters.add(field="entityId", values=extract_item.id)
+        pages = feature_set.features.list(filters=filters)
+        features_count = pages.items_count
+
+        # Validations
+        self.assertTrue(features_count == 1)
+        feature_vector_entity = list(pages.all())[0]
+        self.assertTrue(feature_vector_entity.entity_id == extract_item.id)
+        self.assertTrue(isinstance(feature_vector_entity.value, list))
+        self.assertTrue(len(feature_vector_entity.value) == 512)
+
+    def test_extract_text_item(self):
+        # Delete previous features
+        feature_set = self.project.feature_sets.get(feature_set_name=self.feature_set_name)
+        all_features = list(feature_set.features.list().all())
+        for feature in all_features:
+            feature_set.features.delete(feature_id=feature.id)
+
+        item_name = "lorem_text.txt"
+        extract_item = self._perform_extract_item(item_name=item_name)
+
+        # Validate that the output is an item
+        self.assertTrue(isinstance(extract_item, dict))
+        extract_item = self.dataset.items.get(item_id=extract_item.get('item_id', None))
+        self.assertTrue(isinstance(extract_item, dl.Item))
+
+        # Validate that the feature for the item was created
+        filters = dl.Filters(resource=dl.FiltersResource.FEATURE)
+        filters.add(field="entityId", values=extract_item.id)
+        pages = feature_set.features.list(filters=filters)
+        features_count = pages.items_count
+
+        # Validations
+        self.assertTrue(features_count == 1)
+        feature_vector_entity = list(pages.all())[0]
+        self.assertTrue(feature_vector_entity.entity_id == extract_item.id)
+        self.assertTrue(isinstance(feature_vector_entity.value, list))
+        self.assertTrue(len(feature_vector_entity.value) == 512)
 
     def test_extract_dataset(self):
         # Delete previous features
@@ -204,11 +216,33 @@ class MyTestCase(unittest.TestCase):
             feature_set.features.delete(feature_id=feature.id)
 
         item_names = ["car_image.jpeg", "lorem_text.txt"]
-        extract_dataset = self._perform_extract_dataset(item_names=item_names)
+        extract_dataset, filters = self._perform_extract_dataset(item_names=item_names)
 
         # Validate that the output is the dataset
         self.assertTrue(isinstance(extract_dataset, dict))
         self.assertTrue(extract_dataset.get('dataset_id', None) == self.dataset.id)
+
+        # Get tested items
+        tested_items_ids = list()
+        pages = extract_dataset.items.list(filters=filters)
+        items_count = pages.items_count
+        for page in pages:
+            for item in page:
+                tested_items_ids.append(item.id)
+
+        # Get the newly created features
+        filters = dl.Filters(resource=dl.FiltersResource.FEATURE)
+        filters.add(field="entityId", values=tested_items_ids, operator=dl.FiltersOperations.IN)
+        pages = feature_set.features.list(filters=filters)
+        features_count = pages.items_count
+
+        # Validations
+        self.assertTrue(features_count == items_count)
+        for page in pages:
+            for feature in page:
+                self.assertTrue(feature.entity_id in tested_items_ids)
+                self.assertTrue(isinstance(feature.value, list))
+                self.assertTrue(len(feature.value) == 512)
 
 
 if __name__ == '__main__':
