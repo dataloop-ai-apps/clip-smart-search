@@ -27,6 +27,12 @@ class MyTestCase(unittest.TestCase):
             cls.dataset = cls.project.datasets.create(dataset_name=DATASET_NAME)
         cls.feature_set_name = 'clip-feature-set'
 
+        try:
+            feature_set = cls.project.feature_sets.get(feature_set_name=cls.feature_set_name)
+            feature_set.delete()
+        except dl.exceptions.NotFound:
+            pass
+
     @classmethod
     def tearDownClass(cls) -> None:
         # Delete all apps
@@ -154,11 +160,7 @@ class MyTestCase(unittest.TestCase):
     # Test functions
     def test_extract_image_item(self):
         # Delete previous features
-        try:
-            feature_set = self.project.feature_sets.get(feature_set_name=self.feature_set_name)
-            feature_set.delete()
-        except dl.exceptions.NotFound:
-            pass
+        # feature_set = self.project.feature_sets.get(feature_set_name=self.feature_set_name)
         # all_features = list(feature_set.features.list().all())
         # for feature in all_features:
         #     feature_set.features.delete(feature_id=feature.id)
@@ -187,11 +189,7 @@ class MyTestCase(unittest.TestCase):
 
     def test_extract_text_item(self):
         # Delete previous features
-        try:
-            feature_set = self.project.feature_sets.get(feature_set_name=self.feature_set_name)
-            feature_set.delete()
-        except dl.exceptions.NotFound:
-            pass
+        # feature_set = self.project.feature_sets.get(feature_set_name=self.feature_set_name)
         # all_features = list(feature_set.features.list().all())
         # for feature in all_features:
         #     feature_set.features.delete(feature_id=feature.id)
@@ -220,11 +218,7 @@ class MyTestCase(unittest.TestCase):
 
     def test_extract_dataset(self):
         # Delete previous features
-        try:
-            feature_set = self.project.feature_sets.get(feature_set_name=self.feature_set_name)
-            feature_set.delete()
-        except dl.exceptions.NotFound:
-            pass
+        # feature_set = self.project.feature_sets.get(feature_set_name=self.feature_set_name)
         # all_features = list(feature_set.features.list().all())
         # for feature in all_features:
         #     feature_set.features.delete(feature_id=feature.id)
