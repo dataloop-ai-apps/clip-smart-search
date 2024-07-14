@@ -12,7 +12,7 @@ DATASET_NAME = "CLIP-Semantic-Tests"
 class MyTestCase(unittest.TestCase):
     project: dl.Project = None
     dataset: dl.Dataset = None
-    assets_folder: str = os.path.join('tests', 'assets', 'unittest')
+    assets_folder: str = os.path.join('testsX', 'assets', 'unittest')
     dataset_folder: str = os.path.join(assets_folder, 'datasets', 'example_data')
     prepare_item_function = dict()
 
@@ -154,10 +154,14 @@ class MyTestCase(unittest.TestCase):
     # Test functions
     def test_extract_image_item(self):
         # Delete previous features
-        feature_set = self.project.feature_sets.get(feature_set_name=self.feature_set_name)
-        all_features = list(feature_set.features.list().all())
-        for feature in all_features:
-            feature_set.features.delete(feature_id=feature.id)
+        try:
+            feature_set = self.project.feature_sets.get(feature_set_name=self.feature_set_name)
+            feature_set.delete()
+        except dl.exceptions.NotFound:
+            pass
+        # all_features = list(feature_set.features.list().all())
+        # for feature in all_features:
+        #     feature_set.features.delete(feature_id=feature.id)
 
         item_name = "car_image.jpeg"
         extract_item = self._perform_extract_item(item_name=item_name)
@@ -168,6 +172,7 @@ class MyTestCase(unittest.TestCase):
         self.assertTrue(isinstance(extract_item, dl.Item))
 
         # Validate that the feature for the item was created
+        feature_set = self.project.feature_sets.get(feature_set_name=self.feature_set_name)
         filters = dl.Filters(resource=dl.FiltersResource.FEATURE)
         filters.add(field="entityId", values=extract_item.id)
         pages = feature_set.features.list(filters=filters)
@@ -182,10 +187,14 @@ class MyTestCase(unittest.TestCase):
 
     def test_extract_text_item(self):
         # Delete previous features
-        feature_set = self.project.feature_sets.get(feature_set_name=self.feature_set_name)
-        all_features = list(feature_set.features.list().all())
-        for feature in all_features:
-            feature_set.features.delete(feature_id=feature.id)
+        try:
+            feature_set = self.project.feature_sets.get(feature_set_name=self.feature_set_name)
+            feature_set.delete()
+        except dl.exceptions.NotFound:
+            pass
+        # all_features = list(feature_set.features.list().all())
+        # for feature in all_features:
+        #     feature_set.features.delete(feature_id=feature.id)
 
         item_name = "lorem_text.txt"
         extract_item = self._perform_extract_item(item_name=item_name)
@@ -196,6 +205,7 @@ class MyTestCase(unittest.TestCase):
         self.assertTrue(isinstance(extract_item, dl.Item))
 
         # Validate that the feature for the item was created
+        feature_set = self.project.feature_sets.get(feature_set_name=self.feature_set_name)
         filters = dl.Filters(resource=dl.FiltersResource.FEATURE)
         filters.add(field="entityId", values=extract_item.id)
         pages = feature_set.features.list(filters=filters)
@@ -210,10 +220,14 @@ class MyTestCase(unittest.TestCase):
 
     def test_extract_dataset(self):
         # Delete previous features
-        feature_set = self.project.feature_sets.get(feature_set_name=self.feature_set_name)
-        all_features = list(feature_set.features.list().all())
-        for feature in all_features:
-            feature_set.features.delete(feature_id=feature.id)
+        try:
+            feature_set = self.project.feature_sets.get(feature_set_name=self.feature_set_name)
+            feature_set.delete()
+        except dl.exceptions.NotFound:
+            pass
+        # all_features = list(feature_set.features.list().all())
+        # for feature in all_features:
+        #     feature_set.features.delete(feature_id=feature.id)
 
         item_names = ["car_image.jpeg", "lorem_text.txt"]
         extract_dataset, filters = self._perform_extract_dataset(item_names=item_names)
@@ -224,13 +238,14 @@ class MyTestCase(unittest.TestCase):
 
         # Get tested items
         tested_items_ids = list()
-        pages = extract_dataset.items.list(filters=filters)
+        pages = self.dataset.items.list(filters=filters)
         items_count = pages.items_count
         for page in pages:
             for item in page:
                 tested_items_ids.append(item.id)
 
         # Get the newly created features
+        feature_set = self.project.feature_sets.get(feature_set_name=self.feature_set_name)
         filters = dl.Filters(resource=dl.FiltersResource.FEATURE)
         filters.add(field="entityId", values=tested_items_ids, operator=dl.FiltersOperations.IN)
         pages = feature_set.features.list(filters=filters)
