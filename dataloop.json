@@ -121,7 +121,7 @@
         "moduleName": "extract_features",
         "packageRevision": "latest",
         "runtime": {
-          "podType": "highmem-l",
+          "podType": "regular-m",
           "concurrency": 10,
           "runnerImage": "gcr.io/viewo-g/piper/agent/runner/cpu/clip-search:0.1.0",
           "autoscaler": {
