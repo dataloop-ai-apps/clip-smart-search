@@ -137,7 +137,7 @@ class TestUtils:
         dpk_json_filepath = None
         for manifest in self.dataloop_cfg.get("manifests", list()):
             dpk_json_filepath = manifest
-            with open(dpk_json_filepath, 'r') as f:
+            with open(dpk_json_filepath, 'r', encoding="utf8") as f:
                 dpk_json = json.load(f)
             if dpk_json["name"] == dpk_name:
                 break
