@@ -114,9 +114,15 @@ class TestUtils:
                     if key not in ["system"]:
                         item_metadata.update({key: value})
 
+                # Construct item remote path
+                item_path = pathlib.Path(item_binary)
+                item_relative_path = item_path.relative_to(items_folder_path)
+                remote_path = "/".join(item_relative_path.parts[:-1])
+
                 # Upload item
                 dataset.items.upload(
                     local_path=str(item_binary),
+                    remote_path=remote_path,
                     local_annotations_path=str(annotation_json),
                     item_metadata=item_metadata
                 )
@@ -131,7 +137,7 @@ class TestUtils:
         dpk_json_filepath = None
         for manifest in self.dataloop_cfg.get("manifests", list()):
             dpk_json_filepath = manifest
-            with open(dpk_json_filepath, 'r', encoding='utf-8') as f:
+            with open(dpk_json_filepath, 'r') as f:
                 dpk_json = json.load(f)
             if dpk_json["name"] == dpk_name:
                 break
