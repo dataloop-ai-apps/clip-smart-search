@@ -115,9 +115,8 @@ class TestUtils:
                         item_metadata.update({key: value})
 
                 # Construct item remote path
-                item_path = pathlib.Path(item_binary)
-                item_relative_path = item_path.relative_to(items_folder_path)
-                remote_path = "/".join(item_relative_path.parts[:-1])
+                item_folder_path = item_binary.relative_to(items_folder_path).parent
+                remote_path = "/".join(item_folder_path.parts)
 
                 # Upload item
                 dataset.items.upload(
