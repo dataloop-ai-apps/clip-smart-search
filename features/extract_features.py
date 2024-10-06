@@ -22,7 +22,7 @@ class ClipExtractor(dl.BaseServiceRunner):
         self.model, self.preprocess = clip.load("ViT-B/32", device=self.device)
         self.feature_set = None
         self.feature_set_name = 'clip-feature-set'
-        self.feature_vector_entities = list()
+        # self.feature_vector_entities = list()
         self.create_feature_set(project=project)
 
     def create_feature_set(self, project: dl.Project):
@@ -51,12 +51,12 @@ class ClipExtractor(dl.BaseServiceRunner):
                 }
             )
         self.feature_set = feature_set
-        self.feature_vector_entities = [fv.entity_id for fv in self.feature_set.features.list().all()]
+        # self.feature_vector_entities = [fv.entity_id for fv in self.feature_set.features.list().all()]
 
     def extract_item(self, item: dl.Item) -> dl.Item:
-        if item.id in self.feature_vector_entities:
-            logger.info(f'Item {item.id} already has feature vector')
-            return item
+        # if item.id in self.feature_vector_entities:
+        #     logger.info(f'Item {item.id} already has feature vector')
+        #     return item
         logger.info(f'Started on item id: {item.id}, filename: {item.filename}')
         tic = time.time()
         # assert False
@@ -73,9 +73,12 @@ class ClipExtractor(dl.BaseServiceRunner):
         else:
             raise ValueError(f'Unsupported mimetype for clip: {item.mimetype}')
         output = features[0].cpu().detach().numpy().tolist()
-        self.feature_set.features.create(value=output, entity=item)
+        try:
+            self.feature_set.features.create(value=output, entity=item)
+        except dl.exceptions.BadRequest:
+            logger.error(f'Error creating feature vector for item id: {item.id}, feature vector already exists!')
         logger.info(f'Done. runtime: {(time.time() - tic):.2f}[s]')
-        self.feature_vector_entities.append(item.id)
+        # self.feature_vector_entities.append(item.id)
         return item
 
     def extract_dataset(self, dataset: dl.Dataset, query=None, progress=None):
@@ -105,8 +108,7 @@ class ClipExtractor(dl.BaseServiceRunner):
 
 
 if __name__ == "__main__":
-    dl.setenv('rc')
-    project = dl.projects.get(project_id='2cb9ae90-b6e8-4d15-9016-17bacc9b7bdf')
+    project = dl.projects.get(project_id='')
     app = ClipExtractor(project=project)
-    dataset = dl.datasets.get(dataset_id='66445937b4cb9b520a45a7ab')
+    dataset = dl.datasets.get(dataset_id='')
     app.extract_dataset(dataset=dataset)
