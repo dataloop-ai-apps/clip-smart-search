@@ -157,46 +157,6 @@
         },
         "executionTimeout": 360000
       }
-    ],
-    "triggers": [
-      {
-        "name": "extract-clip-on-item",
-        "active": true,
-        "type": "Event",
-        "namespace": "services.clip-inference",
-        "spec": {
-          "filter": {
-            "$and": [
-              {
-                "$or": [
-                  {
-                    "metadata.system.mimetype": "image/*"
-                  },
-                  {
-                    "metadata.system.mimetype": "text/*"
-                  }
-                ]
-              },
-              {
-                "hidden": false
-              },
-              {
-                "type": "file"
-              }
-            ]
-          },
-          "executionMode": "Always",
-          "resource": "Item",
-          "actions": [
-            "Created"
-          ],
-          "input": {},
-          "operation": {
-            "type": "function",
-            "functionName": "embed_items"
-          }
-        }
-      }
     ]
   }
 }
