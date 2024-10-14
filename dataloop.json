@@ -190,12 +190,7 @@
           "actions": [
             "Created"
           ],
-          "input": {
-            "items": {
-              "type": "Item[]",
-              "description": "The input items for embeddings."
-            }
-          },
+          "input": {},
           "operation": {
             "type": "function",
             "functionName": "embed_items"
