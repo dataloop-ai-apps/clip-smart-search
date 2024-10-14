@@ -2,11 +2,18 @@
 
 import os
 import clip
+import json
 import logging
 import dtlpy as dl
+import numpy as np
 import pandas as pd
+from io import BytesIO
 from PIL import Image, ImageFile
 from tqdm import tqdm
+import time
+import concurrent.futures
+from concurrent.futures import ThreadPoolExecutor
+
 from dtlpy.utilities.dataset_generators.dataset_generator_torch import DatasetGeneratorTorch
 from dtlpy.utilities.reports import Report, FigOptions, ConfusionMatrix
 
@@ -25,45 +32,65 @@ def convert_models_to_fp32(model):
 logger = logging.getLogger('[CLIP-SEARCH]')
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
+# clip available models: ['RN50', 'RN101', 'RN50x4', 'RN50x16', 'RN50x64', 'ViT-B/32', 'ViT-B/16', 'ViT-L/14', 'ViT-L/14@336px']
+
 
 @dl.Package.decorators.module(name='model-adapter',
                               description='Model Adapter for CLIP text and image embedding model from OpenAI')
 class ClipAdapter(dl.BaseModelAdapter):
     """
-    Model Adapter for CLIP text and image embedding model from OpenAI
-    """
-    def __init__(self, project: dl.Project = None, model_entity: dl.Model = None):
-        if project is None:
-            project = self.service_entity.project
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        self.model, self.preprocess = clip.load("ViT-B/32", device=self.device)
+        Model Adapter for CLIP text and image embedding model from OpenAI
+        """
+    # def __init__(self, model_entity: dl.Model = None):
+    #     self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    #     self.feature_set = None
+    #
+    #     # move to before creating the feature set
+    #     self.feature_set_name = 'clip-feature-set'
+    #     # self.feature_vector_entities = list()
+    #     self.create_feature_set(project=project)
+
+    def __init__(self, model_entity: dl.Model = None):
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        if model_entity is None:
+            raise ValueError('model_entity must be provided')
+
+        self.arch_name = model_entity.configuration.get("model_name", "ViT-B/32")
+        if self.arch_name not in clip.available_models():
+            raise ValueError(f"Model {self.arch_name} is not an available architecture for CLIP.")
+        self.model_name = "CLIP " + self.arch_name
+
         self.feature_set = None
         self.feature_set_name = 'clip-feature-set'
-        # self.feature_vector_entities = list()
-        self.create_feature_set(project=project)
+
+        super().__init__(model_entity=model_entity)
 
     def load(self, local_path, **kwargs):
-        weights_filename = self.model_entity.configuration.get('weights_filename', 'model.pth')
 
-        # load model arch and state
-        model_path = os.path.join(local_path, weights_filename)
-        logger.info("Loading a model from {}".format(local_path))
-
-        if os.path.exists(model_path):
-            self.model = torch.load(model_path, map_location=self.device)
-            _, self.preprocess = clip.load("ViT-B/32", device=self.device)
-        else:
-            self.model, self.preprocess = clip.load("ViT-B/32", device=self.device)
-
+        self.model, self.preprocess = clip.load(self.arch_name, device=self.device)
         self.model.to(self.device)
-        # self.model.eval()
-        logger.info("Loaded model from {} successfully".format(model_path))
+        self.model.eval()
+        logger.info("Loaded model {} successfully".format(self.model_name))
 
-    def save(self, local_path, **kwargs):
-        weights_filename = self.model_entity.configuration.get('weights_filename', 'model.pth')
-        model_path = os.path.join(local_path, weights_filename)
-        torch.save(self.model, model_path)
-        logger.info("Model saved to {}".format(model_path))
+    def embed(self, batch, **kwargs):
+        embeddings = []
+        with torch.no_grad():
+            for item in batch:
+                if isinstance(item, str):
+                    self.adapter_defaults.upload_features = True
+                    text = item
+                    # TODO get the length of input text currently hardcoded to 200
+                    tokens = clip.tokenize([text[:200]], context_length=77).to(self.device)
+                    features = self.model.encode_text(tokens)
+                elif isinstance(item, np.ndarray):
+                    item_img = Image.fromarray(item)
+                    image = self.preprocess(item_img).unsqueeze(0).to(self.device)
+                    features = self.model.encode_image(image)
+                else:
+                    raise ValueError(f'Unsupported mimetype for CLIP: {type(item)}')
+                embedding = features[0].cpu().detach().numpy().tolist()
+                embeddings.append(embedding)
+        return embeddings
 
     def train(self, data_path, output_path, **kwargs):
         self.model.train()
@@ -200,7 +227,16 @@ class ClipAdapter(dl.BaseModelAdapter):
 
 if __name__ == "__main__":
     dl.setenv('prod')
-    project = dl.projects.get(project_name='Model mgmt demo')  # id 1d2ffb6d-fe1c-4f8e-b2da-d05778ef7f03
-    app = ClipAdapter(project=project)
-    dataset = dl.datasets.get(dataset_name='taco for clip')
-    app.extract_dataset(dataset=dataset)
+    project = dl.projects.get(project_name='Model mgmt demo')
+    model = project.models.get(model_id='670ccfa3bb9423df793e5216')
+    model.configuration['model_name'] = 'ViT-B/32'
+    model.configuration['featureSetName'] = 'wohoooooooooox'
+    model.configuration['embeddings_size'] = 512
+    model.name = 'CLIP ViT-B/32'
+
+    app = ClipAdapter(model_entity=model)
+    dataset = project.datasets.get(dataset_name='taco mini')
+    item = dataset.items.get(item_id='670cc97f74e80d85f07e950c')
+    app.embed_items(items=[item])
+
+    app.train_model()

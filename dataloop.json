@@ -15,6 +15,73 @@
     "gitTag": "0.1.24"
   },
   "components": {
+    "modules": [
+      {
+        "name": "extract-features",
+        "entryPoint": "model_adapter.py",
+        "className": "ClipAdapter",
+        "functions": [
+          {
+            "name": "embed_items",
+            "input": [
+              {
+                "type": "Item[]",
+                "name": "items",
+                "description": "The input items for embeddings."
+              }
+            ],
+            "output": [
+              {
+                "type": "Item[]",
+                "name": "items",
+                "description": "The same input items for embeddings."
+              },
+              {
+                "type": "Json",
+                "name": "json",
+                "description": "Embeddings of items."
+              }
+            ],
+            "displayName": "Embed Items",
+            "displayIcon": "icon-dl-embeddings",
+            "description": "Extract features function of the model for a list of items."
+          },
+          {
+            "name": "embed_dataset",
+            "input": [
+              {
+                "type": "Dataset",
+                "name": "dataset",
+                "description": "The input dataset of the items required for prediction."
+              },
+              {
+                "type": "Json",
+                "name": "filters",
+                "description": "The DQL in json format to get all the items required for prediction."
+              }
+            ],
+            "output": [],
+            "displayName": "Embed Dataset",
+            "displayIcon": "icon-dl-embeddings",
+            "description": "Extract features function of the model for a dataset."
+          }
+        ]
+      }
+    ],
+    "models": [
+      {
+        "name": "clip-smart-search",
+        "moduleName": "extract-features",
+        "scope": "project",
+        "status": "pre-trained",
+        "inputType": "text",
+        "configuration": {
+          "model_name": "ViT-B/32",
+          "embeddings_size": 512
+        },
+        "description": "OpenAI CLIP model for search with NLP"
+      }
+    ],
     "panels": [
       {
         "name": "clip-smart-search",
@@ -55,70 +122,23 @@
         "location": "datasetBrowserSearchOption",
         "invoke": {
           "type": "panel",
-          "namespace": "clip-smart-search"
+          "namespace": "clip-inference.extract-features.embed_items"
         }
       },
       {
         "displayName": "Clip Extract Features",
         "invoke": {
           "type": "function",
-          "namespace": "clip-extraction.extract_features.extract_dataset"
+          "namespace": "clip-inference.clip-extraction.embed_items"
         },
         "location": "datasetBrowserApps",
         "icon": "icon-dl-edit"
       }
     ],
-    "modules": [
-      {
-        "name": "extract_features",
-        "entryPoint": "features/extract_features.py",
-        "className": "ClipExtractor",
-        "functions": [
-          {
-            "name": "extract_item",
-            "description": "Extract CLIP features on a single item",
-            "input": [
-              {
-                "type": "Item",
-                "name": "item"
-              }
-            ],
-            "output": [
-              {
-                "type": "Item",
-                "name": "item"
-              }
-            ],
-            "displayName": "Clip Features"
-          },
-          {
-            "name": "extract_dataset",
-            "description": "Extract CLIP features on a single item",
-            "input": [
-              {
-                "type": "Dataset",
-                "name": "dataset"
-              },
-              {
-                "type": "Json",
-                "name": "query"
-              }
-            ],
-            "output": [
-              {
-                "type": "Dataset",
-                "name": "dataset"
-              }
-            ],
-            "displayName": "Clip Dataset Features"
-          }
-        ]
-      }
-    ],
     "services": [
       {
-        "name": "clip-extraction",
-        "moduleName": "extract_features",
+        "name": "clip-inference",
+        "moduleName": "extract-features",
         "packageRevision": "latest",
         "runtime": {
           "podType": "regular-m",
@@ -139,7 +159,7 @@
         "name": "extract-clip-on-item",
         "active": true,
         "type": "Event",
-        "namespace": "services.clip-extraction",
+        "namespace": "services.clip-inference",
         "spec": {
           "filter": {
             "$and": [
@@ -169,7 +189,7 @@
           "input": {},
           "operation": {
             "type": "function",
-            "functionName": "extract_item"
+            "functionName": "embed_items"
           }
         }
       }
