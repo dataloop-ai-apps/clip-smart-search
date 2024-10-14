@@ -108,7 +108,11 @@ class ClipExtractor(dl.BaseServiceRunner):
 
 
 if __name__ == "__main__":
-    project = dl.projects.get(project_id='')
+    dl.setenv('prod')
+    project = dl.projects.get(project_name='Model mgmt demo')
     app = ClipExtractor(project=project)
-    dataset = dl.datasets.get(dataset_id='')
-    app.extract_dataset(dataset=dataset)
+    dataset = project.datasets.get(dataset_name='taco mini')
+    # app.extract_dataset(dataset=dataset)
+    item = dataset.items.get(item_id='670ce054ad7d7462a8b4fcb8')
+    # img = item.download(save_locally=False, to_array=True)
+    app.extract_item(item=item)
