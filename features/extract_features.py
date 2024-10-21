@@ -9,6 +9,7 @@ import concurrent.futures
 from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
 import json
+import os
 
 logger = logging.getLogger('[CLIP-SEARCH]')
 ImageFile.LOAD_TRUNCATED_IMAGES = True
@@ -53,6 +54,17 @@ class ClipExtractor(dl.BaseServiceRunner):
         self.feature_set = feature_set
         # self.feature_vector_entities = [fv.entity_id for fv in self.feature_set.features.list().all()]
 
+    def extract_from_data(self, image: Image.Image = None, text=None):
+        if image is not None:
+            image = self.preprocess(image).unsqueeze(0).to(self.device)
+            features = self.model.encode_image(image)
+        elif text is not None:
+            tokens = clip.tokenize([text], context_length=77).to(self.device)
+            features = self.model.encode_text(tokens)
+        else:
+            raise ValueError('Either image or text is required')
+        return features[0].cpu().detach().numpy().tolist()
+
     def extract_item(self, item: dl.Item) -> dl.Item:
         # if item.id in self.feature_vector_entities:
         #     logger.info(f'Item {item.id} already has feature vector')
@@ -63,13 +75,11 @@ class ClipExtractor(dl.BaseServiceRunner):
         if 'image/' in item.mimetype:
             orig_image = Image.fromarray(item.download(save_locally=False, to_array=True))
             # orig_image = Image.open(filepath)
-            image = self.preprocess(orig_image).unsqueeze(0).to(self.device)
-            features = self.model.encode_image(image)
+            features = self.extract_from_data(image=orig_image)
         elif 'text/' in item.mimetype:
             text = item.download(save_locally=False).read().decode()
             # TODO get the length of input text currently hardcoded to 200
-            tokens = clip.tokenize([text[:200]], context_length=77).to(self.device)
-            features = self.model.encode_text(tokens)
+            features = self.extract_from_data(text=text[:200])
         else:
             raise ValueError(f'Unsupported mimetype for clip: {item.mimetype}')
         output = features[0].cpu().detach().numpy().tolist()
@@ -78,7 +88,6 @@ class ClipExtractor(dl.BaseServiceRunner):
         except dl.exceptions.BadRequest:
             logger.error(f'Error creating feature vector for item id: {item.id}, feature vector already exists!')
         logger.info(f'Done. runtime: {(time.time() - tic):.2f}[s]')
-        # self.feature_vector_entities.append(item.id)
         return item
 
     def extract_dataset(self, dataset: dl.Dataset, query=None, progress=None):
@@ -86,7 +95,9 @@ class ClipExtractor(dl.BaseServiceRunner):
         filters.add(field='metadata.system.mimetype', values="image/*", method=dl.FILTERS_METHOD_OR)
         filters.add(field='metadata.system.mimetype', values="text/*", method=dl.FILTERS_METHOD_OR)
 
+        items_path = os.path.join(os.getcwd(), dataset.id)
         pages = dataset.items.list(filters=filters)
+
         pbar = tqdm.tqdm(total=pages.items_count)
         with ThreadPoolExecutor() as executor:
             futures = [executor.submit(self.extract_item, obj) for obj in pages.all()]
