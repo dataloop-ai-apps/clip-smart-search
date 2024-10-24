@@ -134,7 +134,7 @@ async function run(textInput, itemsQuery) {
   console.log(vector);
 
   let query = {
-    filter: { $and: [{ hidden: false }, { type: 'file' }] },
+    filter: { $and: [{ hidden: false }, { type: 'file' }, {datasetId: dataset.id}] },
     page: 0,
     pageSize: 1000,
     resource: 'items',
@@ -151,7 +151,8 @@ async function run(textInput, itemsQuery) {
             $euclidSort: { eu_dist: 'ascending' }
           }
         },
-        featureSetId: featureSetId
+        featureSetId: featureSetId,
+        datasetId: dataset.id
       }
     }
   }
