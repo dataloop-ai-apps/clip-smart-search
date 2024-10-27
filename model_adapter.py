@@ -32,6 +32,7 @@ def convert_models_to_fp32(model):
 logger = logging.getLogger('[CLIP-SEARCH]')
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
+
 # clip available models: ['RN50', 'RN101', 'RN50x4', 'RN50x16', 'RN50x64', 'ViT-B/32', 'ViT-B/16', 'ViT-L/14', 'ViT-L/14@336px']
 
 
@@ -41,6 +42,7 @@ class ClipAdapter(dl.BaseModelAdapter):
     """
         Model Adapter for CLIP text and image embedding model from OpenAI
         """
+
     # def __init__(self, model_entity: dl.Model = None):
     #     self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     #     self.feature_set = None
@@ -67,7 +69,8 @@ class ClipAdapter(dl.BaseModelAdapter):
 
     def load(self, local_path, **kwargs):
         model_filename = self.configuration.get('weights_filename', 'best.pt')
-        model_filepath = os.path.join(local_path, model_filename) if Path(model_filename).stem not in clip.available_models() \
+        model_filepath = os.path.join(local_path, model_filename) if Path(
+            model_filename).stem not in clip.available_models() \
             else model_filename
         self.model, self.preprocess = clip.load(name=self.arch_name, device=self.device)
         if os.path.isfile(model_filepath):
@@ -119,7 +122,7 @@ class ClipAdapter(dl.BaseModelAdapter):
         episilon = self.configuration.get('episilon', 1e-6)
         weight_decay = self.configuration.get('weight_decay', 0.2)
 
-        best_loss = np.Inf
+        best_loss = np.inf
         best_iter = 0
         early_stopping = self.configuration.get('early_stopping', True)
         early_stopping_epochs = self.configuration.get('early_stopping_epochs', 5)
@@ -133,10 +136,11 @@ class ClipAdapter(dl.BaseModelAdapter):
         # prepare data #
         ################
         class image_title_dataset(Dataset):
-            def __init__(self, list_image_path, list_txt):
+            def __init__(self, list_image_path, list_txt, preprocess):
                 self.image_path = list_image_path
                 # you can tokenize everything at once in here(slow at the beginning), or tokenize it in the training loop.
                 self.title = clip.tokenize(list_txt)
+                self.preprocess = preprocess
 
             def __len__(self):
                 return len(self.title)
@@ -146,45 +150,69 @@ class ClipAdapter(dl.BaseModelAdapter):
                 title = self.title[idx]
                 return image, title
 
-        class ImageTitleDatasetGenerator(DatasetGenerator):
-            def __getitem__(self, idx):
-                if torch.is_tensor(idx):
-                    idx = idx.tolist()
+        # class ImageTitleDatasetGenerator(DatasetGenerator):
+        #     def __getitem__(self, idx):
+        #         if torch.is_tensor(idx):
+        #             idx = idx.tolist()
+        #
+        #         return super(DatasetGenerator, self).__getitem__(idx)
 
-                return super(DatasetGenerator, self).__getitem__(idx)
+        def get_image_text_pairs(data_path):
+            logger.debug(f"Data path: {data_path}")
+            path = Path(data_path)
+            json_files = (path / 'json').rglob("*.json")
+            logger.debug(f"Json files: {json_files}")
+            img_extensions = ["jpg", "jpeg", "png", "bmp", "tiff"]
+            item_files = []
+            item_captions = []
+            for ext in img_extensions:
+                item_files += (path / 'items').rglob(f"*.{ext}")
 
+            for json_file in json_files:
+                with open(json_file, 'r') as f:
+                    data = json.load(f)
+                item_captions.append(data['description'])
+            # for src, dst in zip([json_files, item_files], ['json', 'items']):
+            #     for src_file in src:
+            #         if not os.path.exists(os.path.join(data_path, dst, os.path.basename(src_file))):
+            #             shutil.move(src_file, os.path.join(data_path, dst, os.path.basename(src_file)))
+            # for root, dirs, files in os.walk(data_path, topdown=False):
+            #     for dir_name in dirs:
+            #         dir_path = os.path.join(root, dir_name)
+            #         if not os.listdir(dir_path):
+            #             os.rmdir(dir_path)
 
-        # load data
-        # data_pairs = pd.read_csv(r"C:\Users\Yaya Tang\Documents\DATASETS\TACO 100\taco_100_INPUTS.csv")
-        # list_image_path = data_pairs['filepath']
-        # list_txt = data_pairs['img_description']
-        # dataset = image_title_dataset(list_image_path, list_txt)
-        # dataloader = DataLoader(dataset, batch_size=batch_size)
+            return item_files, item_captions
 
         train_filter = self.model_entity.metadata['system']['subsets']['train']['filter']
         val_filter = self.model_entity.metadata['system']['subsets']['validation']['filter']
 
-        train_dataset = DatasetGeneratorTorch(data_path=os.path.join(data_path, 'train'),
-                                              filters=dl.Filters(custom_filter=train_filter),
-                                              dataset_entity=self.model_entity.dataset,
-                                              id_to_label_map=self.model_entity.id_to_label_map,
-                                              label_to_id_map=self.model_entity.label_to_id_map,
-                                              overwrite=False,
-                                              to_mask=False,
-                                              annotation_type=None,
-                                              transforms=self.preprocess
-                                              )
+        # train_dataset = DatasetGeneratorTorch(data_path=os.path.join(data_path, 'train'),
+        #                                       filters=dl.Filters(custom_filter=train_filter),
+        #                                       dataset_entity=self.model_entity.dataset,
+        #                                       id_to_label_map=self.model_entity.id_to_label_map,
+        #                                       label_to_id_map=self.model_entity.label_to_id_map,
+        #                                       overwrite=False,
+        #                                       to_mask=False,
+        #                                       annotation_type=dl.AnnotationType.FREETEXT,
+        #                                       transforms=self.preprocess
+        #                                       )
+        #
+        # val_dataset = DatasetGeneratorTorch(data_path=os.path.join(data_path, 'validation'),
+        #                                     filters=dl.Filters(custom_filter=val_filter),
+        #                                     dataset_entity=self.model_entity.dataset,
+        #                                     id_to_label_map=self.model_entity.id_to_label_map,
+        #                                     label_to_id_map=self.model_entity.label_to_id_map,
+        #                                     overwrite=False,
+        #                                     to_mask=False,
+        #                                     annotation_type=dl.AnnotationType.FREETEXT,
+        #                                     transforms=self.preprocess
+        #                                     )
+        train_items = dataset.items.download(filters=dl.Filters(custom_filter=train_filter))
+        val_items = dataset.items.download(filters=dl.Filters(custom_filter=val_filter))
 
-        val_dataset = DatasetGeneratorTorch(data_path=os.path.join(data_path, 'validation'),
-                                            filters=dl.Filters(custom_filter=val_filter),
-                                            dataset_entity=self.model_entity.dataset,
-                                            id_to_label_map=self.model_entity.id_to_label_map,
-                                            label_to_id_map=self.model_entity.label_to_id_map,
-                                            overwrite=False,
-                                            to_mask=False,
-                                            annotation_type=None,
-                                            transforms=self.preprocess
-                                            )
+        train_dataset = image_title_dataset(*get_image_text_pairs(os.path.join(data_path, 'train')), self.preprocess)
+        val_dataset = image_title_dataset(*get_image_text_pairs(os.path.join(data_path, 'validation')), self.preprocess)
 
         dataloaders = {'train': DataLoader(train_dataset,
                                            batch_size=batch_size,
@@ -296,13 +324,13 @@ class ClipAdapter(dl.BaseModelAdapter):
             raise ValueError('Could not find validation set. CLIP requires train and validation set for training. '
                              'Add a validation set DQL filter in the dl.Model metadata')
 
-        # for subset, filters_dict in subsets.items():
-        #     filters = dl.Filters(custom_filter=filters_dict)
-        #     filters.add_join(field='type', values='box')
-        #     pages = self.model_entity.dataset.items.list(filters=filters)
-        #     if pages.items_count == 0:
-        #         raise ValueError(f'Could not find box annotations in subset {subset}. '
-        #                          f'Cannot train without annotation in the data subsets')
+        for subset, filters_dict in subsets.items():
+            filters = dl.Filters(custom_filter=filters_dict)
+            filters.add_join(field='type', values='text')
+            pages = self.model_entity.dataset.items.list(filters=filters)
+            if pages.items_count == 0:
+                raise ValueError(f'Could not find free-text annotations in subset {subset}. '
+                                 f'Cannot train without annotations in the data subsets.')
 
         self.move_annotation_files(os.path.join(data_path, 'train'))
         self.move_annotation_files(os.path.join(data_path, 'validation'))
@@ -311,12 +339,12 @@ class ClipAdapter(dl.BaseModelAdapter):
     def move_annotation_files(data_path):
         logger.debug(f"Data path: {data_path}")
         path = Path(data_path)
-        json_files = (path/'json').rglob("*.json")
+        json_files = (path / 'json').rglob("*.json")
         logger.debug(f"Json files: {json_files}")
         img_extensions = ["jpg", "jpeg", "png", "bmp", "tiff"]
         item_files = []
         for ext in img_extensions:
-            item_files += (path/'items').rglob(f"*.{ext}")
+            item_files += (path / 'items').rglob(f"*.{ext}")
         for src, dst in zip([json_files, item_files], ['json', 'items']):
             for src_file in src:
                 if not os.path.exists(os.path.join(data_path, dst, os.path.basename(src_file))):
@@ -371,5 +399,6 @@ if __name__ == "__main__":
     model.name = 'CLIP ' + model.configuration['model_name']
 
     app = ClipAdapter(model_entity=model)
-    new_model = model.clone(model_name=model.name+' SFT', dataset=dataset)
+    new_model = model.clone(model_name=model.name + ' SFT', dataset=dataset)
+    new_model.output_type = 'text'
     app.train_model(model=new_model)
