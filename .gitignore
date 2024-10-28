@@ -162,3 +162,4 @@ output/
 *.npy
 dataloop_scripts/
 data
+tmp/
