@@ -164,20 +164,6 @@
     ],
     "computeConfigs": [
       {
-        "name": "clip-deploy",
-        "runtime": {
-          "podType": "regular-m",
-          "concurrency": 1,
-          "runnerImage": "gcr.io/viewo-g/piper/agent/runner/apps/clip-smart-search:0.1.1",
-          "autoscaler": {
-            "type": "rabbitmq",
-            "minReplicas": 0,
-            "maxReplicas": 2,
-            "queueLength": 100
-          }
-        }
-      },
-      {
         "name": "clip-train",
         "runtime": {
           "podType": "gpu-t4",
@@ -201,7 +187,7 @@
         "runtime": {
           "podType": "regular-m",
           "concurrency": 10,
-          "runnerImage": "gcr.io/viewo-g/piper/agent/runner/cpu/clip-search:0.1.0",
+          "runnerImage": "gcr.io/viewo-g/piper/agent/runner/apps/clip-smart-search:0.1.1",
           "autoscaler": {
             "type": "rabbitmq",
             "minReplicas": 0,
