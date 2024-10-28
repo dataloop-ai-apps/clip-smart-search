@@ -150,13 +150,6 @@ class ClipAdapter(dl.BaseModelAdapter):
                 title = self.title[idx]
                 return image, title
 
-        # class ImageTitleDatasetGenerator(DatasetGenerator):
-        #     def __getitem__(self, idx):
-        #         if torch.is_tensor(idx):
-        #             idx = idx.tolist()
-        #
-        #         return super(DatasetGenerator, self).__getitem__(idx)
-
         def get_image_text_pairs(data_path):
             logger.debug(f"Data path: {data_path}")
             path = Path(data_path)
@@ -172,16 +165,6 @@ class ClipAdapter(dl.BaseModelAdapter):
                 with open(json_file, 'r') as f:
                     data = json.load(f)
                 item_captions.append(data['description'])
-            # for src, dst in zip([json_files, item_files], ['json', 'items']):
-            #     for src_file in src:
-            #         if not os.path.exists(os.path.join(data_path, dst, os.path.basename(src_file))):
-            #             shutil.move(src_file, os.path.join(data_path, dst, os.path.basename(src_file)))
-            # for root, dirs, files in os.walk(data_path, topdown=False):
-            #     for dir_name in dirs:
-            #         dir_path = os.path.join(root, dir_name)
-            #         if not os.listdir(dir_path):
-            #             os.rmdir(dir_path)
-
             return item_files, item_captions
 
         train_filter = self.model_entity.metadata['system']['subsets']['train']['filter']
