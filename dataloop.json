@@ -67,7 +67,7 @@
         "displayName": "Clip Extract Features",
         "invoke": {
           "type": "function",
-          "namespace": "clip-deploy.clip-extraction.embed_items"
+          "namespace": "clip-deploy.clip-module.embed_items"
         },
         "location": "datasetBrowserApps",
         "icon": "icon-dl-edit"
@@ -198,8 +198,8 @@
     ],
     "services": [
       {
-        "name": "clip-inference",
-        "moduleName": "extract-features",
+        "name": "clip-extraction",
+        "moduleName": "clip-module",
         "packageRevision": "latest",
         "runtime": {
           "podType": "regular-m",
@@ -250,7 +250,7 @@
           "input": {},
           "operation": {
             "type": "function",
-            "functionName": "extract_item"
+            "functionName": "embed_items"
           }
         }
       }
