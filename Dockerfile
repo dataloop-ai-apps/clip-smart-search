@@ -1,4 +1,4 @@
-FROM dataloopai/dtlpy-agent:cpu.py3.8.opencv4.7
+FROM dataloopai/dtlpy-agent:gpu.cuda.11.8.py3.8.pytorch2
 
 RUN pip install --user \
     torch \

@@ -7,6 +7,7 @@
   "attributes": {
     "Category": "Model",
     "Provider": "Open AI",
+    "License": "MIT",
     "NLP": "Embeddings",
     "Media Type": [
       "Image",
@@ -19,12 +20,65 @@
     "gitTag": "0.1.24"
   },
   "components": {
+    "computeConfigs": [
+      {
+        "name": "clip-deploy",
+        "runtime": {
+          "podType": "regular-m",
+          "concurrency": 1,
+          "runnerImage": "gcr.io/viewo-g/piper/agent/runner/apps/clip-smart-search:0.1.1",
+          "autoscaler": {
+            "type": "rabbitmq",
+            "minReplicas": 0,
+            "maxReplicas": 2,
+            "queueLength": 100
+          }
+        }
+      },
+      {
+        "name": "clip-train",
+        "runtime": {
+          "podType": "gpu-t4",
+          "concurrency": 1,
+          "runnerImage": "gcr.io/viewo-g/piper/agent/runner/apps/clip-smart-search:0.1.1",
+          "autoscaler": {
+            "type": "rabbitmq",
+            "minReplicas": 0,
+            "maxReplicas": 2,
+            "queueLength": 100
+          }
+        },
+        "executionTimeout": 36000000
+      }
+    ],
     "modules": [
       {
-        "name": "extract-features",
+        "name": "clip-module",
         "entryPoint": "model_adapter.py",
         "className": "ClipAdapter",
+        "description": "CLIP model adapter for search with NLP",
         "functions": [
+          {
+            "name": "train_model",
+            "computeConfig": "clip-train",
+            "input": [
+              {
+                "type": "Model",
+                "name": "model",
+                "description": "Dataloop Model Entity"
+              }
+            ],
+            "output": [
+              {
+                "type": "Model",
+                "name": "model",
+                "description": "Dataloop Model Entity"
+              }
+            ],
+            "displayName": "Train A Model",
+            "displayIcon": "icon-dl-models-management",
+            "description": "Function to train CLIP model"
+          },
           {
             "name": "embed_items",
             "input": [
