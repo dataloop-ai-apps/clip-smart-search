@@ -29,6 +29,22 @@ def convert_models_to_fp32(model):
         p.grad.data = p.grad.data.float()
 
 
+class image_title_dataset(Dataset):
+    def __init__(self, list_image_path, list_txt, preprocess):
+        self.image_path = list_image_path
+        # you can tokenize everything at once in here(slow at the beginning), or tokenize it in the training loop.
+        self.title = clip.tokenize(list_txt)
+        self.preprocess = preprocess
+
+    def __len__(self):
+        return len(self.title)
+
+    def __getitem__(self, idx):
+        image = self.preprocess(Image.open(self.image_path[idx]))  # Image from PIL module
+        title = self.title[idx]
+        return image, title
+
+
 logger = logging.getLogger('[CLIP-SEARCH]')
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
@@ -135,37 +151,6 @@ class ClipAdapter(dl.BaseModelAdapter):
         ################
         # prepare data #
         ################
-        class image_title_dataset(Dataset):
-            def __init__(self, list_image_path, list_txt, preprocess):
-                self.image_path = list_image_path
-                # you can tokenize everything at once in here(slow at the beginning), or tokenize it in the training loop.
-                self.title = clip.tokenize(list_txt)
-                self.preprocess = preprocess
-
-            def __len__(self):
-                return len(self.title)
-
-            def __getitem__(self, idx):
-                image = self.preprocess(Image.open(self.image_path[idx]))  # Image from PIL module
-                title = self.title[idx]
-                return image, title
-
-        def get_image_text_pairs(data_path):
-            logger.debug(f"Data path: {data_path}")
-            path = Path(data_path)
-            json_files = (path / 'json').rglob("*.json")
-            logger.debug(f"Json files: {json_files}")
-            img_extensions = ["jpg", "jpeg", "png", "bmp", "tiff"]
-            item_files = []
-            item_captions = []
-            for ext in img_extensions:
-                item_files += (path / 'items').rglob(f"*.{ext}")
-
-            for json_file in json_files:
-                with open(json_file, 'r') as f:
-                    data = json.load(f)
-                item_captions.append(data['description'])
-            return item_files, item_captions
 
         train_filter = self.model_entity.metadata['system']['subsets']['train']['filter']
         val_filter = self.model_entity.metadata['system']['subsets']['validation']['filter']
@@ -194,8 +179,8 @@ class ClipAdapter(dl.BaseModelAdapter):
         train_items = dataset.items.download(filters=dl.Filters(custom_filter=train_filter))
         val_items = dataset.items.download(filters=dl.Filters(custom_filter=val_filter))
 
-        train_dataset = image_title_dataset(*get_image_text_pairs(os.path.join(data_path, 'train')), self.preprocess)
-        val_dataset = image_title_dataset(*get_image_text_pairs(os.path.join(data_path, 'validation')), self.preprocess)
+        train_dataset = image_title_dataset(*self.get_image_text_pairs(os.path.join(data_path, 'train')), self.preprocess)
+        val_dataset = image_title_dataset(*self.get_image_text_pairs(os.path.join(data_path, 'validation')), self.preprocess)
 
         dataloaders = {'train': DataLoader(train_dataset,
                                            batch_size=batch_size,
@@ -338,6 +323,24 @@ class ClipAdapter(dl.BaseModelAdapter):
                 if not os.listdir(dir_path):
                     os.rmdir(dir_path)
 
+    @staticmethod
+    def get_image_text_pairs(data_path):
+        logger.debug(f"Data path: {data_path}")
+        path = Path(data_path)
+        json_files = (path / 'json').rglob("*.json")
+        logger.debug(f"Json files: {json_files}")
+        img_extensions = ["jpg", "jpeg", "png", "bmp", "tiff"]
+        item_files = []
+        item_captions = []
+        for ext in img_extensions:
+            item_files += (path / 'items').rglob(f"*.{ext}")
+
+        for json_file in json_files:
+            with open(json_file, 'r') as f:
+                data = json.load(f)
+            item_captions.append(data['description'])
+        return item_files, item_captions
+
 
 if __name__ == "__main__":
     # dl.setenv('prod')
@@ -363,7 +366,7 @@ if __name__ == "__main__":
     # item = dataset.items.get(item_id='670cc97f74e80d85f07e950c')
     # model = project.models.get(model_id='670ebac88834bc76cf60abe1')  # yolov8
 
-    model = project.models.get(model_id='670d21d528b15709af8ce466')
+    model = project.models.get(model_id='670ebac88834bc76cf60abe1')
     model.configuration['model_name'] = 'ViT-B/32'
     # model.configuration['featureSetName'] = ''
     model.configuration['embeddings_size'] = 512
