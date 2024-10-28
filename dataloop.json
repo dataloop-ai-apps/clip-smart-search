@@ -60,7 +60,7 @@
         "location": "datasetBrowserSearchOption",
         "invoke": {
           "type": "panel",
-          "namespace": "clip-inference.extract-features.embed_items"
+          "namespace": "clip-inference.clip-module.embed_items"
         }
       },
       {
