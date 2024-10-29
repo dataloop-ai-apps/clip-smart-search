@@ -29,7 +29,7 @@ def convert_models_to_fp32(model):
         p.grad.data = p.grad.data.float()
 
 
-class image_title_dataset(Dataset):
+class ImageTextDataset(Dataset):
     def __init__(self, list_image_path, list_txt, preprocess):
         self.image_path = list_image_path
         # you can tokenize everything at once in here(slow at the beginning), or tokenize it in the training loop.
@@ -103,6 +103,11 @@ class ClipAdapter(dl.BaseModelAdapter):
         logger.info("Loaded model {} successfully".format(self.model_name))
 
     def save(self, local_path, **kwargs):
+        """ saves configuration and weights locally
+            the function is called in save_to_model which first save locally and then uploads to model entity
+
+        :param local_path: `str` directory path in local FileSystem
+        """
         weights_filename = self.model_entity.configuration.get('weights_filename', 'best.pt')
         model_path = os.path.join(local_path, weights_filename)
         torch.save(self.model, model_path)
@@ -179,17 +184,16 @@ class ClipAdapter(dl.BaseModelAdapter):
         train_items = dataset.items.download(filters=dl.Filters(custom_filter=train_filter))
         val_items = dataset.items.download(filters=dl.Filters(custom_filter=val_filter))
 
-        train_dataset = image_title_dataset(*self.get_image_text_pairs(os.path.join(data_path, 'train')), self.preprocess)
-        val_dataset = image_title_dataset(*self.get_image_text_pairs(os.path.join(data_path, 'validation')), self.preprocess)
+        train_dataset = ImageTextDataset(*self.get_image_text_pairs(os.path.join(data_path, 'train')),
+                                         self.preprocess)
+        val_dataset = ImageTextDataset(*self.get_image_text_pairs(os.path.join(data_path, 'validation')),
+                                       self.preprocess)
 
         dataloaders = {'train': DataLoader(train_dataset,
-                                           batch_size=batch_size,
-                                           shuffle=True),
+                                           batch_size=batch_size),
                        'val': DataLoader(val_dataset,
-                                         batch_size=batch_size,
-                                         shuffle=True,
-                                         )}
-        logger.debug("Train and Val data loaders created")
+                                         batch_size=batch_size)}
+        logger.debug("Train and validation data loaders created")
 
         #################
         # prepare model #
@@ -206,81 +210,64 @@ class ClipAdapter(dl.BaseModelAdapter):
                                      weight_decay=weight_decay)
 
         for epoch in range(num_epochs):
-            pbar = tqdm(dataloaders['train'], total=len(dataloaders['train']))
-            for batch in dataloaders['train']:
-                optimizer.zero_grad()
+            with tqdm(dataloaders['train'], unit="batch") as tepoch:
+                tepoch.set_description(f"Epoch {epoch + 1}/{num_epochs}...")
+                for idx, batch in enumerate(tepoch):
+                    optimizer.zero_grad()
 
-                images, texts = batch
-                images = images.to(self.device)
-                texts = texts.to(self.device)
+                    images, texts = batch
+                    images = images.to(self.device)
+                    texts = texts.to(self.device)
 
-                # forward pass
-                logits_per_image, logits_per_text = self.model(images, texts)
+                    # forward pass
+                    logits_per_image, logits_per_text = self.model(images, texts)
 
-                # calc loss + backprop
-                ground_truth = torch.arange(len(images), dtype=torch.long, device=self.device)
-                total_loss = (loss_img(logits_per_image, ground_truth) + loss_txt(logits_per_text, ground_truth)) / 2
-                total_loss.backward()
-                if self.device == "cpu":
-                    optimizer.step()
-                else:
-                    convert_models_to_fp32(self.model)
-                    optimizer.step()
-                    clip.model.convert_weights(self.model)
-            pbar.set_description(f"Epoch {epoch + 1}/{num_epochs}, Loss: {total_loss.item():.4f}")
+                    # calc loss + backprop
+                    ground_truth = torch.arange(len(images), dtype=torch.long, device=self.device)
+                    total_loss = (loss_img(logits_per_image, ground_truth) + loss_txt(logits_per_text, ground_truth)) / 2
+                    total_loss.backward()
+                    if self.device == "cpu":
+                        optimizer.step()
+                    else:
+                        convert_models_to_fp32(self.model)
+                        optimizer.step()
+                        clip.model.convert_weights(self.model)
+                    tepoch.set_postfix(Training_loss=f"{total_loss.item():.4f}")
 
-            # EVALUATION ON VALIDATION DATASET
-            for batch in dataloaders['val']:
-                optimizer.zero_grad()
-                images, texts = batch
-                images = images.to(self.device)
-                texts = texts.to(self.device)
+            with tqdm(dataloaders['val'], unit="batch") as vepoch:
+                vepoch.set_description("  Validation...")
+                for batch in vepoch:
+                    optimizer.zero_grad()
+                    images, texts = batch
+                    images = images.to(self.device)
+                    texts = texts.to(self.device)
 
-                # forward pass
-                logits_per_image, logits_per_text = self.model(images, texts)
+                    # forward pass
+                    logits_per_image, logits_per_text = self.model(images, texts)
 
-                # calc loss + backprop
-                ground_truth = torch.arange(len(images), dtype=torch.long, device=self.device)
-                val_loss = (loss_img(logits_per_image, ground_truth) + loss_txt(logits_per_text, ground_truth)) / 2
-                val_loss.backward()
-                if self.device == "cpu":
-                    optimizer.step()
-                else:
-                    convert_models_to_fp32(self.model)
-                    optimizer.step()
-                    clip.model.convert_weights(self.model)
-            pbar.set_description(f"Epoch {epoch + 1}/{num_epochs}, Validation Loss: {val_loss.item():.4f}")
+                    # calc loss
+                    ground_truth = torch.arange(len(images), dtype=torch.long, device=self.device)
+                    val_loss = (loss_img(logits_per_image, ground_truth) + loss_txt(logits_per_text, ground_truth)) / 2
+                    vepoch.set_postfix(Validation_loss=f"{val_loss.item():.4f}")
 
-            torch.save({
-                'epoch': epoch,
-                'model_state_dict': self.model.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict(),
-                'loss': total_loss,
-            }, f"checkpoints/CLIP_epoch_{epoch + 1}.pt")
+            save_dir = os.path.join(output_path, 'checkpoints')
+            if not os.path.exists(save_dir):
+                os.makedirs(save_dir)
 
             if epoch == 0:
                 best_loss = val_loss
             if val_loss < best_loss:
                 best_iter = epoch + 1
                 best_loss = val_loss
-                torch.save({
-                    'epoch': epoch,
-                    'model_state_dict': model.state_dict(),
-                    'optimizer_state_dict': optimizer.state_dict(),
-                    'loss': val_loss,
-                }, f"checkpoints/{self.model_name}_epoch_BEST.pt")  # just change to your preferred folder/filename
 
             if early_stopping is True:
                 if ((epoch + 1) - best_iter) > early_stopping_epochs:
                     print("Early stop achieved at", epoch + 1)
                     break
 
-                torch.save({
-                    'epoch': epoch,
-                    'model_state_dict': model.state_dict(),
-                    'optimizer_state_dict': optimizer.state_dict(),
-                    'loss': total_loss,
-                }, f"checkpoints/{self.model_name}_epoch_{epoch + 1}.pt")
+    def prepare_item_func(self, item: dl.Item) -> dl.PromptItem:
+        prompt_item = dl.PromptItem.from_item(item)
+        return prompt_item
 
     def convert_from_dtlpy(self, data_path, **kwargs):
         # Subsets validation
@@ -367,9 +354,7 @@ if __name__ == "__main__":
     # model = project.models.get(model_id='670ebac88834bc76cf60abe1')  # yolov8
 
     model = project.models.get(model_id='670ebac88834bc76cf60abe1')
-    model.configuration['model_name'] = 'ViT-B/32'
-    # model.configuration['featureSetName'] = ''
-    model.configuration['embeddings_size'] = 512
+    model.configuration = {'model_name': 'ViT-B/32', 'embeddings_size': 512}
     model_filters = model.metadata.get('system', None)
     if model_filters is None:
         model.metadata['system'] = {}
