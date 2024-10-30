@@ -58,16 +58,6 @@ class ClipAdapter(dl.BaseModelAdapter):
     """
         Model Adapter for CLIP text and image embedding model from OpenAI
         """
-
-    # def __init__(self, model_entity: dl.Model = None):
-    #     self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    #     self.feature_set = None
-    #
-    #     # move to before creating the feature set
-    #     self.feature_set_name = 'clip-feature-set'
-    #     # self.feature_vector_entities = list()
-    #     self.create_feature_set(project=project)
-
     def __init__(self, model_entity: dl.Model = None):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         if model_entity is None:
@@ -142,15 +132,19 @@ class ClipAdapter(dl.BaseModelAdapter):
         betas = self.configuration.get('betas', (0.9, 0.98))
         episilon = self.configuration.get('episilon', 1e-6)
         weight_decay = self.configuration.get('weight_decay', 0.2)
-
-        best_loss = np.inf
-        best_iter = 0
-        early_stopping = self.configuration.get('early_stopping', True)
-        early_stopping_epochs = self.configuration.get('early_stopping_epochs', 5)
         on_epoch_end_callback = kwargs.get('on_epoch_end_callback')
 
-        os.makedirs(output_path, exist_ok=True)
-        os.makedirs(os.path.join(output_path, 'weights'), exist_ok=True)
+        # early stopping params
+        best_loss = np.inf
+        best_iter = 0
+        not_improving_epochs = 0
+        early_stop = self.configuration.get('early_stopping', False)
+        early_stopping_epochs = self.configuration.get('early_stopping_epochs', 5)
+
+        # os.makedirs(output_path, exist_ok=True)
+        # os.makedirs(os.path.join(output_path, 'weights'), exist_ok=True)
+
+        self.model.to(device=self.device)
         logger.info("Model set to train mode.")
 
         ################
@@ -160,27 +154,6 @@ class ClipAdapter(dl.BaseModelAdapter):
         train_filter = self.model_entity.metadata['system']['subsets']['train']['filter']
         val_filter = self.model_entity.metadata['system']['subsets']['validation']['filter']
 
-        # train_dataset = DatasetGeneratorTorch(data_path=os.path.join(data_path, 'train'),
-        #                                       filters=dl.Filters(custom_filter=train_filter),
-        #                                       dataset_entity=self.model_entity.dataset,
-        #                                       id_to_label_map=self.model_entity.id_to_label_map,
-        #                                       label_to_id_map=self.model_entity.label_to_id_map,
-        #                                       overwrite=False,
-        #                                       to_mask=False,
-        #                                       annotation_type=dl.AnnotationType.FREETEXT,
-        #                                       transforms=self.preprocess
-        #                                       )
-        #
-        # val_dataset = DatasetGeneratorTorch(data_path=os.path.join(data_path, 'validation'),
-        #                                     filters=dl.Filters(custom_filter=val_filter),
-        #                                     dataset_entity=self.model_entity.dataset,
-        #                                     id_to_label_map=self.model_entity.id_to_label_map,
-        #                                     label_to_id_map=self.model_entity.label_to_id_map,
-        #                                     overwrite=False,
-        #                                     to_mask=False,
-        #                                     annotation_type=dl.AnnotationType.FREETEXT,
-        #                                     transforms=self.preprocess
-        #                                     )
         train_items = dataset.items.download(filters=dl.Filters(custom_filter=train_filter))
         val_items = dataset.items.download(filters=dl.Filters(custom_filter=val_filter))
 
@@ -250,19 +223,18 @@ class ClipAdapter(dl.BaseModelAdapter):
                     val_loss = (loss_img(logits_per_image, ground_truth) + loss_txt(logits_per_text, ground_truth)) / 2
                     vepoch.set_postfix(Validation_loss=f"{val_loss.item():.4f}")
 
-            save_dir = os.path.join(output_path, 'checkpoints')
-            if not os.path.exists(save_dir):
-                os.makedirs(save_dir)
-
-            if epoch == 0:
-                best_loss = val_loss
             if val_loss < best_loss:
-                best_iter = epoch + 1
+                not_improving_epochs = 0
                 best_loss = val_loss
-
-            if early_stopping is True:
+                best_iter = epoch + 1
+                logger.info(
+                    f'Validation loss decreased ({best_loss:.4f} --> {val_loss:.4f}).  Saving model ...')
+                torch.save(self.model.state_dict(), os.path.join(output_path, 'best.pth'))  # saving ckpt
+            else:
+                not_improving_epochs += 1
+            if not_improving_epochs > early_stopping_epochs and early_stop:
                 if ((epoch + 1) - best_iter) > early_stopping_epochs:
-                    print("Early stop achieved at", epoch + 1)
+                    print("Early stop achieved at epoch ", epoch + 1)
                     break
 
     def prepare_item_func(self, item: dl.Item) -> dl.PromptItem:
