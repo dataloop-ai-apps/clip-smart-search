@@ -4,7 +4,7 @@ RUN pip install --user \
     torch \
     ftfy \
     regex \
-    pillow>=11.0.0 \
+    'pillow>=11.0.0' \
     git+https://github.com/openai/CLIP.git
 
 
