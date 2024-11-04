@@ -56,8 +56,8 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
                               description='Model Adapter for CLIP text and image embedding model from OpenAI')
 class ClipAdapter(dl.BaseModelAdapter):
     """
-        Model Adapter for CLIP text and image embedding model from OpenAI
-        """
+    Model Adapter for CLIP text and image embedding model from OpenAI
+    """
 
     def __init__(self, model_entity: dl.Model = None):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -239,43 +239,23 @@ class ClipAdapter(dl.BaseModelAdapter):
                     print("Early stop achieved at epoch ", epoch + 1)
                     break
 
-    def prepare_item_func(self, item: dl.Item) -> dl.PromptItem:
-        # take the item and description and convert to a json
-        prompt_format = {
-            "shebang": "dataloop",
-            "metadata": {
-                "dltype": "prompt"
-            },
-            "prompts": {
-                "1": [{
-                    "mimetype": "image/*",
-                    "value": f"https://gate.dataloop.ai/api/v1/items/{item.id}/stream"
-                }, {
-                    "mimetype": "application/text",
-                    "value": item.description
-                }
-                ]
-            }
-        }
-        j_prompt = json.dumps(prompt_format)
-
-        prompt_item = dl.PromptItem(name=item.name)
-        prompt = dl.Prompt(key='image_text')
-        prompt.add_element(mimetype=dl.PromptType.IMAGE, value=item.stream)
-        prompt.add_element(mimetype=dl.PromptType.TEXT, value=item.description)
-
-        # dataset = item.dataset
-        item: dl.Item = dataset.items.upload(prompt_item, overwrite=True, remote_path='/promptItems')
-
-        prompt_item = dl.PromptItem.from_item(item)
-        caption = item.description()
-        prompt_item.add(
-            message={
-                "content": [{"mimetype": dl.PromptType.TEXT, "value": caption}]
-            }
-        )
-        prompt_item.update()
-        return prompt_item
+    # def prepare_item_func(self, item: dl.Item) -> dl.Item:
+    #     try:
+    #         caption = item.description
+    #     except TypeError:
+    #         logger.warning(f"Item {item.id} has no description. Using blank description.")
+    #         caption = ''
+    #     new_name = Path(item.name).stem + '.json'
+    #     new_path = '/promptItems' + item.dir
+    #
+    #     prompt_item = dl.PromptItem(name=new_name)
+    #     prompt = dl.Prompt(key='image_text')
+    #     prompt.add_element(mimetype=dl.PromptType.IMAGE, value=item.stream)
+    #     prompt.add_element(mimetype=dl.PromptType.TEXT, value=caption)
+    #     prompt_item.prompts.append(prompt)
+    #
+    #     new_item = item.dataset.items.upload(prompt_item, remote_name=new_name, remote_path=new_path)
+    #     return new_item
 
     def convert_from_dtlpy(self, data_path, **kwargs):
         # Subsets validation
@@ -353,7 +333,6 @@ if __name__ == "__main__":
     # new_model = model.clone(model_name=model.name+' FT', dataset=dataset)
     #
     # app.train_model(model=new_model)
-    from pprint import pprint
 
     dl.setenv('rc')
     project = dl.projects.get(project_name='smart image search')
@@ -362,7 +341,7 @@ if __name__ == "__main__":
     # model = project.models.get(model_id='670ebac88834bc76cf60abe1')  # yolov8
 
     model = project.models.get(model_id='670ebac88834bc76cf60abe1')  # yolo model
-    model.configuration = {'model_name': 'ViT-B/32', 'embeddings_size': 512}
+    model.configuration = {'model_name': 'ViT-B/32', 'embeddings_size': 512, 'epochs': 3}
     model_filters = model.metadata.get('system', None)
     if model_filters is None:
         model.metadata['system'] = {}
@@ -375,6 +354,8 @@ if __name__ == "__main__":
 
     model.metadata['system']['subsets']['train'] = train_filters.prepare()
     model.metadata['system']['subsets']['validation'] = val_filters.prepare()
+    model.input_type = ['image', 'text']
+    # model.output_type = ['box', 'classification']
     model.name = 'CLIP ' + model.configuration['model_name']
 
     app = ClipAdapter(model_entity=model)

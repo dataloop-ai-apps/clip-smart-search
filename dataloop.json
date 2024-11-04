@@ -99,7 +99,7 @@
             ],
             "displayName": "Train A Model",
             "displayIcon": "icon-dl-models-management",
-            "description": "Function to train CLIP model"
+            "description": "Fine-tune CLIP model on a custom dataset for improved search. "
           },
           {
             "name": "embed_items",
@@ -168,7 +168,7 @@
         "runtime": {
           "podType": "gpu-t4",
           "concurrency": 1,
-          "runnerImage": "gcr.io/viewo-g/piper/agent/runner/apps/clip-smart-search:0.1.1",
+          "runnerImage": "gcr.io/viewo-g/piper/agent/runner/apps/clip-smart-search:0.1.2",
           "autoscaler": {
             "type": "rabbitmq",
             "minReplicas": 0,
@@ -187,7 +187,7 @@
         "runtime": {
           "podType": "regular-m",
           "concurrency": 10,
-          "runnerImage": "gcr.io/viewo-g/piper/agent/runner/apps/clip-smart-search:0.1.1",
+          "runnerImage": "gcr.io/viewo-g/piper/agent/runner/apps/clip-smart-search:0.1.2",
           "autoscaler": {
             "type": "rabbitmq",
             "minReplicas": 0,
