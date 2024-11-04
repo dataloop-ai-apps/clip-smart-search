@@ -58,6 +58,7 @@ class ClipAdapter(dl.BaseModelAdapter):
     """
         Model Adapter for CLIP text and image embedding model from OpenAI
         """
+
     def __init__(self, model_entity: dl.Model = None):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         if model_entity is None:
@@ -197,7 +198,8 @@ class ClipAdapter(dl.BaseModelAdapter):
 
                     # calc loss + backprop
                     ground_truth = torch.arange(len(images), dtype=torch.long, device=self.device)
-                    total_loss = (loss_img(logits_per_image, ground_truth) + loss_txt(logits_per_text, ground_truth)) / 2
+                    total_loss = (loss_img(logits_per_image, ground_truth) + loss_txt(logits_per_text,
+                                                                                      ground_truth)) / 2
                     total_loss.backward()
                     if self.device == "cpu":
                         optimizer.step()
@@ -238,7 +240,41 @@ class ClipAdapter(dl.BaseModelAdapter):
                     break
 
     def prepare_item_func(self, item: dl.Item) -> dl.PromptItem:
+        # take the item and description and convert to a json
+        prompt_format = {
+            "shebang": "dataloop",
+            "metadata": {
+                "dltype": "prompt"
+            },
+            "prompts": {
+                "1": [{
+                    "mimetype": "image/*",
+                    "value": f"https://gate.dataloop.ai/api/v1/items/{item.id}/stream"
+                }, {
+                    "mimetype": "application/text",
+                    "value": item.description
+                }
+                ]
+            }
+        }
+        j_prompt = json.dumps(prompt_format)
+
+        prompt_item = dl.PromptItem(name=item.name)
+        prompt = dl.Prompt(key='image_text')
+        prompt.add_element(mimetype=dl.PromptType.IMAGE, value=item.stream)
+        prompt.add_element(mimetype=dl.PromptType.TEXT, value=item.description)
+
+        # dataset = item.dataset
+        item: dl.Item = dataset.items.upload(prompt_item, overwrite=True, remote_path='/promptItems')
+
         prompt_item = dl.PromptItem.from_item(item)
+        caption = item.description()
+        prompt_item.add(
+            message={
+                "content": [{"mimetype": dl.PromptType.TEXT, "value": caption}]
+            }
+        )
+        prompt_item.update()
         return prompt_item
 
     def convert_from_dtlpy(self, data_path, **kwargs):
@@ -325,7 +361,7 @@ if __name__ == "__main__":
     # item = dataset.items.get(item_id='670cc97f74e80d85f07e950c')
     # model = project.models.get(model_id='670ebac88834bc76cf60abe1')  # yolov8
 
-    model = project.models.get(model_id='670ebac88834bc76cf60abe1')
+    model = project.models.get(model_id='670ebac88834bc76cf60abe1')  # yolo model
     model.configuration = {'model_name': 'ViT-B/32', 'embeddings_size': 512}
     model_filters = model.metadata.get('system', None)
     if model_filters is None:
