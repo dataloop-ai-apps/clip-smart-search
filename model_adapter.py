@@ -152,11 +152,13 @@ class ClipAdapter(dl.BaseModelAdapter):
         # prepare data #
         ################
 
-        train_filter = self.model_entity.metadata['system']['subsets']['train']['filter']
-        val_filter = self.model_entity.metadata['system']['subsets']['validation']['filter']
+        train_json = self.model_entity.metadata['system']['subsets']['train']['filter']
+        val_json = self.model_entity.metadata['system']['subsets']['validation']['filter']
 
-        train_items = dataset.items.download(filters=dl.Filters(custom_filter=train_filter))
-        val_items = dataset.items.download(filters=dl.Filters(custom_filter=val_filter))
+        train_items = dataset.items.download(filters=dl.Filters(custom_filter=train_json),
+                                             local_path=os.path.join(data_path, 'train'))
+        val_items = dataset.items.download(filters=dl.Filters(custom_filter=val_json),
+                                           local_path=os.path.join(data_path, 'validation'))
 
         train_dataset = ImageTextDataset(*self.get_image_text_pairs(os.path.join(data_path, 'train')),
                                          self.preprocess)
@@ -231,14 +233,17 @@ class ClipAdapter(dl.BaseModelAdapter):
                 best_iter = epoch + 1
                 logger.info(
                     f'Validation loss decreased ({best_loss:.4f} --> {val_loss:.4f}).  Saving model ...')
-                # torch.save(self.model.state_dict(), os.path.join(output_path, 'best.pth'))  # saving ckpt TODO remove and break
-                break
+                torch.save(self.model.state_dict(), os.path.join(output_path,
+                                                                 self.model_entity.configuration.get('weights_filename',
+                                                                                                     'best.pt')))
             else:
                 not_improving_epochs += 1
             if not_improving_epochs > early_stopping_epochs and early_stop:
                 if ((epoch + 1) - best_iter) > early_stopping_epochs:
                     print("Early stop achieved at epoch ", epoch + 1)
                     break
+
+        return
 
     # def prepare_item_func(self, item: dl.Item) -> dl.Item:
     #     try:
@@ -250,12 +255,21 @@ class ClipAdapter(dl.BaseModelAdapter):
     #     new_path = '/promptItems' + item.dir
     #
     #     prompt_item = dl.PromptItem(name=new_name)
-    #     prompt = dl.Prompt(key='image_text')
+    #     prompt_key = "img_caption"
+    #     prompt = dl.Prompt(key=prompt_key)
     #     prompt.add_element(mimetype=dl.PromptType.IMAGE, value=item.stream)
-    #     prompt.add_element(mimetype=dl.PromptType.TEXT, value=caption)
     #     prompt_item.prompts.append(prompt)
     #
-    #     new_item = item.dataset.items.upload(prompt_item, remote_name=new_name, remote_path=new_path)
+    #     new_item = item.dataset.items.upload(prompt_item,
+    #                                          remote_name=new_name,
+    #                                          remote_path=new_path,
+    #                                          overwrite=True)
+    #     annotations = dl.AnnotationCollection()
+    #     annotations.add(annotation_definition=dl.FreeText(text=caption),
+    #                     prompt_id=prompt_key,
+    #                     model_info={'name': 'GT',
+    #                                 'confidence': 1})
+    #     new_item.annotations.upload(annotations)
     #     return new_item
 
     def convert_from_dtlpy(self, data_path, **kwargs):
@@ -270,7 +284,6 @@ class ClipAdapter(dl.BaseModelAdapter):
 
         for subset, filters_dict in subsets.items():
             filters = dl.Filters(custom_filter=filters_dict)
-            filters.add_join(field='type', values='text')
             pages = self.model_entity.dataset.items.list(filters=filters)
             if pages.items_count == 0:
                 raise ValueError(f'Could not find free-text annotations in subset {subset}. '
@@ -283,12 +296,35 @@ class ClipAdapter(dl.BaseModelAdapter):
     def move_annotation_files(data_path):
         logger.debug(f"Data path: {data_path}")
         path = Path(data_path)
-        json_files = (path / 'json').rglob("*.json")
-        logger.debug(f"Json files: {json_files}")
+
+        def download_stream(item_file):
+            with open(item_file) as json_data:
+                d = json.load(json_data)
+            caption_info = d['prompts']['img_caption']
+
+            item_url = None
+            for dictionary in caption_info:
+                if dictionary.get("mimetype") == "image/*":
+                    item_url = dictionary.get("value")
+            item_id = item_url.split('/')[-2]
+            item = dl.items.get(item_id=item_id)
+            item.download(local_path=Path(item_file).parents[0])
+            local_path = Path(item_file).parents[0] / item.name
+            return local_path
+
+        item_jsons = (path / "items").rglob("*.json")
+        item_files = []
+        for item_json in item_jsons:
+            item_path = download_stream(item_json)  # TODO optimize
+            item_files.append(item_path)
+
         img_extensions = ["jpg", "jpeg", "png", "bmp", "tiff"]
         item_files = []
         for ext in img_extensions:
             item_files += (path / 'items').rglob(f"*.{ext}")
+
+        json_files = (path / 'json').rglob("*.json")
+        logger.debug(f"Json files: {json_files}")
         for src, dst in zip([json_files, item_files], ['json', 'items']):
             for src_file in src:
                 if not os.path.exists(os.path.join(data_path, dst, os.path.basename(src_file))):
@@ -314,38 +350,24 @@ class ClipAdapter(dl.BaseModelAdapter):
         for json_file in json_files:
             with open(json_file, 'r') as f:
                 data = json.load(f)
-            item_captions.append(data['description'])
+            annotations = data['annotations']
+            for annot in annotations:
+                if annot['label'] == 'free-text':
+                    caption = annot['coordinates']
+            item_captions.append(caption)
         return item_files, item_captions
 
 
 if __name__ == "__main__":
-    # dl.setenv('prod')
-    # project = dl.projects.get(project_name='Model mgmt demo')
-    # model = project.models.get(model_id='670ccfa3bb9423df793e5216')
-    # model.configuration['model_name'] = 'ViT-B/32'
-    # model.configuration['featureSetName'] = 'wohoooooooooox'
-    # model.configuration['embeddings_size'] = 512
-    # model.name = 'CLIP ViT-B/32'
-    #
-    # app = ClipAdapter(model_entity=model)
-    # dataset = project.datasets.get(dataset_name='taco mini')
-    # item = dataset.items.get(item_id='670cc97f74e80d85f07e950c')
-    # # app.embed_items(items=[item])
-    # new_model = model.clone(model_name=model.name+' FT', dataset=dataset)
-    #
-    # app.train_model(model=new_model)
-
     dl.setenv('rc')
     project = dl.projects.get(project_name='smart image search')
-    dataset = project.datasets.get(dataset_name='TACO 100')
-    # item = dataset.items.get(item_id='670cc97f74e80d85f07e950c')
-    # model = project.models.get(model_id='670ebac88834bc76cf60abe1')  # yolov8
 
-    model = project.models.get(model_id='670ebac88834bc76cf60abe1')  # yolo model
-    # model = project.models.create(model_name='CLIP ViT-B/32', model_type='adapter')
+    dataset = project.datasets.get(dataset_name='TACO 100 prompt items')
+    # model = project.models.get(model_name='clip-smart-search')
+    model = project.models.get(model_id='672a01397a90001e1e301c61')
     model.configuration = {'model_name': 'ViT-B/32',
                            'embeddings_size': 512,
-                           'num_epochs': 20}
+                           'num_epochs': 3}
     model_filters = model.metadata.get('system', None)
     if model_filters is None:
         model.metadata['system'] = {}
@@ -359,10 +381,10 @@ if __name__ == "__main__":
     model.metadata['system']['subsets']['train'] = train_filters.prepare()
     model.metadata['system']['subsets']['validation'] = val_filters.prepare()
     # model.input_type = ['image', 'text']
-    # model.output_type = ['box', 'classification']
     model.name = 'CLIP ' + model.configuration['model_name']
 
-    app = ClipAdapter(model_entity=model)
     new_model = model.clone(model_name=model.name + ' SFT', dataset=dataset)
     new_model.output_type = 'text'
+
+    app = ClipAdapter(model_entity=new_model)
     app.train_model(model=new_model)
