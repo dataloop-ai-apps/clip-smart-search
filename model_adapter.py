@@ -135,7 +135,7 @@ class ClipAdapter(dl.BaseModelAdapter):
         best_loss = np.inf
         best_iter = 0
         not_improving_epochs = 0
-        early_stop = self.configuration.get('early_stopping', False)
+        early_stop = self.configuration.get('early_stopping', True)
         early_stopping_epochs = self.configuration.get('early_stopping_epochs', 5)
 
         # os.makedirs(output_path, exist_ok=True)

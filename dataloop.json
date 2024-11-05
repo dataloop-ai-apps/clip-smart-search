@@ -165,7 +165,10 @@
         ],
         "configuration": {
           "model_name": "ViT-B/32",
-          "embeddings_size": 512
+          "embeddings_size": 512,
+          "batch_size": 32,
+          "early_stopping": true,
+          "early_stopping_epochs": 5
         },
         "description": "OpenAI CLIP model for search with NLP"
       }
