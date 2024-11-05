@@ -337,12 +337,13 @@ if __name__ == "__main__":
 
     dl.setenv('rc')
     project = dl.projects.get(project_name='smart image search')
-    dataset = project.datasets.get(dataset_name='TACO 100')
-    # item = dataset.items.get(item_id='670cc97f74e80d85f07e950c')
-    # model = project.models.get(model_id='670ebac88834bc76cf60abe1')  # yolov8
+    filters = dl.Filters(resource=dl.FiltersResource.ITEM)
+    filters.add(field='dir', values='/promptItems*', operator=dl.FiltersOperations.EQUAL)
 
-    # model = project.models.get(model_id='670ebac88834bc76cf60abe1')  # yolo model
-    model = project.models.create(model_name='CLIP ViT-B/32', model_type='adapter')
+    dataset = project.datasets.get(dataset_name='TACO 100 prompt items')
+    # item = dataset.items.get(item_id='670cc97f74e80d85f07e950c')
+    model = project.models.get(model_id='670ebac88834bc76cf60abe1')  # yolo model
+    # model = project.models.create(model_name='CLIP ViT-B/32')
     model.configuration = {'model_name': 'ViT-B/32',
                            'embeddings_size': 512,
                            'num_epochs': 20}
@@ -359,7 +360,6 @@ if __name__ == "__main__":
     model.metadata['system']['subsets']['train'] = train_filters.prepare()
     model.metadata['system']['subsets']['validation'] = val_filters.prepare()
     # model.input_type = ['image', 'text']
-    # model.output_type = ['box', 'classification']
     model.name = 'CLIP ' + model.configuration['model_name']
 
     app = ClipAdapter(model_entity=model)

@@ -341,8 +341,8 @@ if __name__ == "__main__":
     # item = dataset.items.get(item_id='670cc97f74e80d85f07e950c')
     # model = project.models.get(model_id='670ebac88834bc76cf60abe1')  # yolov8
 
-    # model = project.models.get(model_id='670ebac88834bc76cf60abe1')  # yolo model
-    model = project.models.create(model_name='CLIP ViT-B/32', model_type='adapter')
+    model = project.models.get(model_id='670ebac88834bc76cf60abe1')  # yolo model
+    # model = project.models.create(model_name='CLIP ViT-B/32', model_type='adapter')
     model.configuration = {'model_name': 'ViT-B/32',
                            'embeddings_size': 512,
                            'num_epochs': 20}
