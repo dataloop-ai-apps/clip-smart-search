@@ -66,8 +66,6 @@ class ClipAdapter(dl.BaseModelAdapter):
         if self.arch_name not in clip.available_models():
             raise ValueError(f"Model {self.arch_name} is not an available architecture for CLIP.")
         self.model_name = "CLIP " + self.arch_name
-        self.feature_set = None
-        self.feature_set_name = 'clip-{}-feature-set'.format(self.arch_name)
 
         model_filename = self.configuration.get('weights_filename', 'best.pt')
         model_filepath = os.path.join(local_path, model_filename) if Path(

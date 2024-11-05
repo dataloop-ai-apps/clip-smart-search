@@ -79,6 +79,12 @@
         "entryPoint": "model_adapter.py",
         "className": "ClipAdapter",
         "description": "CLIP model adapter for search with NLP",
+        "initInputs": [
+          {
+            "type": "Model",
+            "name": "model_entity"
+          }
+        ],
         "functions": [
           {
             "name": "train_model",
@@ -154,7 +160,9 @@
         "moduleName": "clip-module",
         "scope": "project",
         "status": "pre-trained",
-        "inputType": ["image"],
+        "inputType": [
+          "image"
+        ],
         "configuration": {
           "model_name": "ViT-B/32",
           "embeddings_size": 512
