@@ -53,28 +53,22 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
 @dl.Package.decorators.module(name='model-adapter',
-                              description='Model Adapter for CLIP text and image embedding model from OpenAI')
+                              description='Model Adapter for CLIP text and image embedding model from OpenAI',
+                              init_inputs={'model_entity': dl.Model})
 class ClipAdapter(dl.BaseModelAdapter):
     """
     Model Adapter for CLIP text and image embedding model from OpenAI
     """
 
-    def __init__(self, model_entity: dl.Model = None):
+    def load(self, local_path, **kwargs):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        if model_entity is None:
-            raise ValueError('model_entity must be provided')
-
-        self.arch_name = model_entity.configuration.get("model_name", "ViT-B/32")
+        self.arch_name = self.model_entity.configuration.get("model_name", "ViT-B/32")
         if self.arch_name not in clip.available_models():
             raise ValueError(f"Model {self.arch_name} is not an available architecture for CLIP.")
         self.model_name = "CLIP " + self.arch_name
-
         self.feature_set = None
         self.feature_set_name = 'clip-{}-feature-set'.format(self.arch_name)
 
-        super().__init__(model_entity=model_entity)
-
-    def load(self, local_path, **kwargs):
         model_filename = self.configuration.get('weights_filename', 'best.pt')
         model_filepath = os.path.join(local_path, model_filename) if Path(
             model_filename).stem not in clip.available_models() \
