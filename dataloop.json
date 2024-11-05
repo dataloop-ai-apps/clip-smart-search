@@ -10,7 +10,8 @@
     "License": "MIT",
     "NLP": "Embeddings",
     "Media Type": [
-      "Image"
+      "Image",
+      "Text"
     ]
   },
   "codebase": {
@@ -153,8 +154,7 @@
         "moduleName": "clip-module",
         "scope": "project",
         "status": "pre-trained",
-        "inputType": ["image",
-          "text"],
+        "inputType": ["image"],
         "configuration": {
           "model_name": "ViT-B/32",
           "embeddings_size": 512
