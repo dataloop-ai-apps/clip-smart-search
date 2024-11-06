@@ -350,32 +350,37 @@ class ClipAdapter(dl.BaseModelAdapter):
 
 
 if __name__ == "__main__":
+    from pprint import pprint
     dl.setenv('rc')
     project = dl.projects.get(project_name='smart image search')
 
     dataset = project.datasets.get(dataset_name='TACO 100 prompt items')
     # model = project.models.get(model_name='clip-smart-search')
-    model = project.models.get(model_id='672a01397a90001e1e301c61')
-    model.configuration = {'model_name': 'ViT-B/32',
-                           'embeddings_size': 512,
-                           'num_epochs': 3}
-    model_filters = model.metadata.get('system', None)
-    if model_filters is None:
-        model.metadata['system'] = {}
-    model.metadata['system']['subsets'] = {}
+    model = project.models.get(model_id='672a1e187a90009604301c72')  # clip-smart-search
+    # model.configuration = {'model_name': 'ViT-B/32',
+    #                        'embeddings_size': 512,
+    #                        'num_epochs': 3}
+    # model_filters = model.metadata.get('system', None)
+    # if model_filters is None:
+    #     model.metadata['system'] = {}
+    # model.metadata['system']['subsets'] = {}
 
-    train_filters = dl.Filters()
-    train_filters.add(field='metadata.system.tags.train', values=True)
-    val_filters = dl.Filters()
-    val_filters.add(field='metadata.system.tags.validation', values=True)
-
-    model.metadata['system']['subsets']['train'] = train_filters.prepare()
-    model.metadata['system']['subsets']['validation'] = val_filters.prepare()
+    # train_filters = dl.Filters()
+    # train_filters.add(field='metadata.system.tags.train', values=True)
+    # val_filters = dl.Filters()
+    # val_filters.add(field='metadata.system.tags.validation', values=True)
+    #
+    # model.metadata['system']['subsets']['train'] = train_filters.prepare()
+    # model.metadata['system']['subsets']['validation'] = val_filters.prepare()
+    #
+    # pprint(train_filters.prepare())
+    # pprint(train_filters.prepare())
+    #
     # model.input_type = ['image', 'text']
     model.name = 'CLIP ' + model.configuration['model_name']
 
     new_model = model.clone(model_name=model.name + ' SFT', dataset=dataset)
-    new_model.output_type = 'text'
+    # new_model.output_type = 'text'
 
     app = ClipAdapter(model_entity=new_model)
     app.train_model(model=new_model)

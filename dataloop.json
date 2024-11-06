@@ -160,9 +160,8 @@
         "moduleName": "clip-module",
         "scope": "project",
         "status": "pre-trained",
-        "inputType": [
-          "multimodal"
-        ],
+        "inputType": "multimodal",
+        "outputType": "text",
         "configuration": {
           "model_name": "ViT-B/32",
           "embeddings_size": 512,
