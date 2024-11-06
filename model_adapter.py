@@ -146,9 +146,9 @@ class ClipAdapter(dl.BaseModelAdapter):
         train_json = self.model_entity.metadata['system']['subsets']['train']['filter']
         val_json = self.model_entity.metadata['system']['subsets']['validation']['filter']
 
-        train_items = dataset.items.download(filters=dl.Filters(custom_filter=train_json),
+        train_items = self.model_entity.dataset.items.download(filters=dl.Filters(custom_filter=train_json),
                                              local_path=os.path.join(data_path, 'train'))
-        val_items = dataset.items.download(filters=dl.Filters(custom_filter=val_json),
+        val_items = self.model_entity.dataset.items.download(filters=dl.Filters(custom_filter=val_json),
                                            local_path=os.path.join(data_path, 'validation'))
 
         train_dataset = ImageTextDataset(*self.get_image_text_pairs(os.path.join(data_path, 'train')),

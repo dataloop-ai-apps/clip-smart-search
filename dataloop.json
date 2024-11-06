@@ -161,7 +161,7 @@
         "scope": "project",
         "status": "pre-trained",
         "inputType": [
-          "image"
+          "multimodal"
         ],
         "configuration": {
           "model_name": "ViT-B/32",
