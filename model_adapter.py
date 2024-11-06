@@ -10,7 +10,6 @@ import numpy as np
 from pathlib import Path
 from PIL import Image, ImageFile
 from tqdm import tqdm
-import time
 import concurrent.futures
 from concurrent.futures import ThreadPoolExecutor
 
@@ -59,6 +58,7 @@ class ClipAdapter(dl.BaseModelAdapter):
     """
     Model Adapter for CLIP text and image embedding model from OpenAI
     """
+
     def load(self, local_path, **kwargs):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.arch_name = self.model_entity.configuration.get("model_name", "ViT-B/32")
@@ -133,9 +133,6 @@ class ClipAdapter(dl.BaseModelAdapter):
         early_stop = self.configuration.get('early_stopping', True)
         early_stopping_epochs = self.configuration.get('early_stopping_epochs', 5)
 
-        # os.makedirs(output_path, exist_ok=True)
-        # os.makedirs(os.path.join(output_path, 'weights'), exist_ok=True)
-
         self.model.to(device=self.device)
         logger.info("Model set to train mode.")
 
@@ -145,11 +142,6 @@ class ClipAdapter(dl.BaseModelAdapter):
 
         train_json = self.model_entity.metadata['system']['subsets']['train']['filter']
         val_json = self.model_entity.metadata['system']['subsets']['validation']['filter']
-
-        train_items = self.model_entity.dataset.items.download(filters=dl.Filters(custom_filter=train_json),
-                                             local_path=os.path.join(data_path, 'train'))
-        val_items = self.model_entity.dataset.items.download(filters=dl.Filters(custom_filter=val_json),
-                                           local_path=os.path.join(data_path, 'validation'))
 
         train_dataset = ImageTextDataset(*self.get_image_text_pairs(os.path.join(data_path, 'train')),
                                          self.preprocess)
@@ -236,33 +228,6 @@ class ClipAdapter(dl.BaseModelAdapter):
 
         return
 
-    # def prepare_item_func(self, item: dl.Item) -> dl.Item:
-    #     try:
-    #         caption = item.description
-    #     except TypeError:
-    #         logger.warning(f"Item {item.id} has no description. Using blank description.")
-    #         caption = ''
-    #     new_name = Path(item.name).stem + '.json'
-    #     new_path = '/promptItems' + item.dir
-    #
-    #     prompt_item = dl.PromptItem(name=new_name)
-    #     prompt_key = "img_caption"
-    #     prompt = dl.Prompt(key=prompt_key)
-    #     prompt.add_element(mimetype=dl.PromptType.IMAGE, value=item.stream)
-    #     prompt_item.prompts.append(prompt)
-    #
-    #     new_item = item.dataset.items.upload(prompt_item,
-    #                                          remote_name=new_name,
-    #                                          remote_path=new_path,
-    #                                          overwrite=True)
-    #     annotations = dl.AnnotationCollection()
-    #     annotations.add(annotation_definition=dl.FreeText(text=caption),
-    #                     prompt_id=prompt_key,
-    #                     model_info={'name': 'GT',
-    #                                 'confidence': 1})
-    #     new_item.annotations.upload(annotations)
-    #     return new_item
-
     def convert_from_dtlpy(self, data_path, **kwargs):
         # Subsets validation
         subsets = self.model_entity.metadata.get("system", dict()).get("subsets", None)
@@ -280,11 +245,11 @@ class ClipAdapter(dl.BaseModelAdapter):
                 raise ValueError(f'Could not find free-text annotations in subset {subset}. '
                                  f'Cannot train without annotations in the data subsets.')
 
-        self.move_annotation_files(os.path.join(data_path, 'train'))
-        self.move_annotation_files(os.path.join(data_path, 'validation'))
+        self.move_and_download_images(os.path.join(data_path, 'train'))
+        self.move_and_download_images(os.path.join(data_path, 'validation'))
 
     @staticmethod
-    def move_annotation_files(data_path):
+    def move_and_download_images(data_path):
         logger.debug(f"Data path: {data_path}")
         path = Path(data_path)
 
@@ -304,13 +269,9 @@ class ClipAdapter(dl.BaseModelAdapter):
             return local_path
 
         item_jsons = (path / "items").rglob("*.json")
-        item_files = []
-        for item_json in item_jsons:
-            item_path = download_stream(item_json)  # TODO optimize
-            item_files.append(item_path)
-
+        with ThreadPoolExecutor() as executor:
+            item_files = [result for result in executor.map(download_stream, item_jsons)]
         img_extensions = ["jpg", "jpeg", "png", "bmp", "tiff"]
-        item_files = []
         for ext in img_extensions:
             item_files += (path / 'items').rglob(f"*.{ext}")
 
@@ -350,37 +311,23 @@ class ClipAdapter(dl.BaseModelAdapter):
 
 
 if __name__ == "__main__":
-    from pprint import pprint
     dl.setenv('rc')
     project = dl.projects.get(project_name='smart image search')
 
     dataset = project.datasets.get(dataset_name='TACO 100 prompt items')
-    # model = project.models.get(model_name='clip-smart-search')
-    model = project.models.get(model_id='672a1e187a90009604301c72')  # clip-smart-search
-    # model.configuration = {'model_name': 'ViT-B/32',
-    #                        'embeddings_size': 512,
-    #                        'num_epochs': 3}
-    # model_filters = model.metadata.get('system', None)
-    # if model_filters is None:
-    #     model.metadata['system'] = {}
-    # model.metadata['system']['subsets'] = {}
+    model = project.models.get(model_name='clip-smart-search')
+    model.metadata['system'] = {}
+    model.metadata['system']['subsets'] = {}
 
-    # train_filters = dl.Filters()
-    # train_filters.add(field='metadata.system.tags.train', values=True)
-    # val_filters = dl.Filters()
-    # val_filters.add(field='metadata.system.tags.validation', values=True)
-    #
-    # model.metadata['system']['subsets']['train'] = train_filters.prepare()
-    # model.metadata['system']['subsets']['validation'] = val_filters.prepare()
-    #
-    # pprint(train_filters.prepare())
-    # pprint(train_filters.prepare())
-    #
-    # model.input_type = ['image', 'text']
+    train_filters = dl.Filters(field='metadata.system.tags.train', values=True)
+    val_filters = dl.Filters(field='metadata.system.tags.validation', values=True)
+
+    model.metadata['system']['subsets']['train'] = train_filters.prepare()
+    model.metadata['system']['subsets']['validation'] = val_filters.prepare()
     model.name = 'CLIP ' + model.configuration['model_name']
 
     new_model = model.clone(model_name=model.name + ' SFT', dataset=dataset)
-    # new_model.output_type = 'text'
+    new_model.output_type = 'text'
 
     app = ClipAdapter(model_entity=new_model)
     app.train_model(model=new_model)
