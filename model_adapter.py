@@ -142,11 +142,18 @@ class ClipAdapter(dl.BaseModelAdapter):
         ################
         # prepare data #
         ################
+        # train_dataset = ImageTextDataset(*self.get_image_text_pairs(os.path.join(data_path, 'train')),
+        #                                  self.preprocess)
+        # val_dataset = ImageTextDataset(*self.get_image_text_pairs(os.path.join(data_path, 'validation')),
+        #                                self.preprocess)
+        train_items, train_captions = self.get_image_text_pairs(os.path.join(data_path, 'train'))
+        val_items, val_captions = self.get_image_text_pairs(os.path.join(data_path, 'validation'))
+        logger.debug(f"Num train items: {len(train_items)}")
+        logger.debug(f"Num val items: {len(val_items)}")
 
-        train_dataset = ImageTextDataset(*self.get_image_text_pairs(os.path.join(data_path, 'train')),
-                                         self.preprocess)
-        val_dataset = ImageTextDataset(*self.get_image_text_pairs(os.path.join(data_path, 'validation')),
-                                       self.preprocess)
+        train_dataset = ImageTextDataset(train_items, train_captions, self.preprocess)
+        val_dataset = ImageTextDataset(val_items, val_captions, self.preprocess)
+
         logger.debug(f"{os.path.join(data_path, 'train')} is train path with {len(train_dataset)} items")
         logger.debug(f"{os.path.join(data_path, 'validation')} is val path with {len(val_dataset)} items")
 
@@ -303,7 +310,6 @@ class ClipAdapter(dl.BaseModelAdapter):
             item_files += (path / 'items').rglob(f"*.{ext}")
         DEBUG_COUNT = 0
         for json_file in json_files:
-            logger.debug(f"Json file: {json_file}")
             with open(json_file, 'r') as f:
                 data = json.load(f)
             DEBUG_COUNT += 1
