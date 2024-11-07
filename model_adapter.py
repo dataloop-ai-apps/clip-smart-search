@@ -39,6 +39,7 @@ class ImageTextDataset(Dataset):
         return len(self.title)
 
     def __getitem__(self, idx):
+        logger.debug("Idx: {}, Image path: {}".format(idx, self.image_path[idx]))
         image = self.preprocess(Image.open(self.image_path[idx]))  # Image from PIL module
         title = self.title[idx]
         return image, title
@@ -140,18 +141,20 @@ class ClipAdapter(dl.BaseModelAdapter):
         # prepare data #
         ################
 
-        train_json = self.model_entity.metadata['system']['subsets']['train']['filter']
-        val_json = self.model_entity.metadata['system']['subsets']['validation']['filter']
-
         train_dataset = ImageTextDataset(*self.get_image_text_pairs(os.path.join(data_path, 'train')),
                                          self.preprocess)
         val_dataset = ImageTextDataset(*self.get_image_text_pairs(os.path.join(data_path, 'validation')),
                                        self.preprocess)
+        logger.debug(f"{os.path.join(data_path, 'train')}")
+        logger.debug(f"{os.path.join(data_path, 'validation')}")
 
         dataloaders = {'train': DataLoader(train_dataset,
                                            batch_size=batch_size),
                        'val': DataLoader(val_dataset,
                                          batch_size=batch_size)}
+        logger.debug(f"number of train items: {len(dataloaders['train'])}")
+        logger.debug(f"number of train items: {len(dataloaders['val'])}")
+
         logger.debug("Train and validation data loaders created")
 
         #################
