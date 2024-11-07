@@ -39,9 +39,9 @@ class ImageTextDataset(Dataset):
         return len(self.title)
 
     def __getitem__(self, idx):
-        logger.debug(f"Idx: {idx}")
-        logger.debug(f"image path: {len(self.image_path)}")
-        logger.debug(f"Image path: {self.image_path[idx]}")
+        # logger.debug(f"Idx: {idx}")
+        # logger.debug(f"image path: {len(self.image_path)}")
+        # logger.debug(f"Image path: {self.image_path[idx]}")
 
         image = self.preprocess(Image.open(self.image_path[idx]))  # Image from PIL module
         title = self.title[idx]
