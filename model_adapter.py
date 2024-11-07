@@ -147,8 +147,8 @@ class ClipAdapter(dl.BaseModelAdapter):
                                          self.preprocess)
         val_dataset = ImageTextDataset(*self.get_image_text_pairs(os.path.join(data_path, 'validation')),
                                        self.preprocess)
-        logger.debug(f"{os.path.join(data_path, 'train')} with {len(train_dataset)} items")
-        logger.debug(f"{os.path.join(data_path, 'validation')} with {len(val_dataset)} items")
+        logger.debug(f"{os.path.join(data_path, 'train')} is train path with {len(train_dataset)} items")
+        logger.debug(f"{os.path.join(data_path, 'validation')} is val path with {len(val_dataset)} items")
 
         dataloaders = {'train': DataLoader(train_dataset,
                                            batch_size=batch_size),
@@ -322,6 +322,7 @@ if __name__ == "__main__":
 
     dataset = project.datasets.get(dataset_name='TACO 100 prompt items')
     model = project.models.get(model_name='clip-smart-search')
+
     model.metadata['system'] = {}
     model.metadata['system']['subsets'] = {}
 
