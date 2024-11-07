@@ -39,7 +39,9 @@ class ImageTextDataset(Dataset):
         return len(self.title)
 
     def __getitem__(self, idx):
-        logger.debug("Idx: {}, Image path: {}".format(idx, self.image_path[idx]))
+        logger.debug("Idx: {}")
+        logger.debug("Image path: {}".format(idx, self.image_path[idx]))
+
         image = self.preprocess(Image.open(self.image_path[idx]))  # Image from PIL module
         title = self.title[idx]
         return image, title
@@ -145,8 +147,8 @@ class ClipAdapter(dl.BaseModelAdapter):
                                          self.preprocess)
         val_dataset = ImageTextDataset(*self.get_image_text_pairs(os.path.join(data_path, 'validation')),
                                        self.preprocess)
-        logger.debug(f"{os.path.join(data_path, 'train')}")
-        logger.debug(f"{os.path.join(data_path, 'validation')}")
+        logger.debug(f"{os.path.join(data_path, 'train')} with {len(train_dataset)} items")
+        logger.debug(f"{os.path.join(data_path, 'validation')} with {len(val_dataset)} items")
 
         dataloaders = {'train': DataLoader(train_dataset,
                                            batch_size=batch_size),
@@ -295,7 +297,6 @@ class ClipAdapter(dl.BaseModelAdapter):
         logger.debug(f"Data path: {data_path}")
         path = Path(data_path)
         json_files = (path / 'json').rglob("*.json")
-        logger.debug(f"Json files: {json_files}")
         img_extensions = ["jpg", "jpeg", "png", "bmp", "tiff"]
         item_files = []
         item_captions = []
@@ -303,6 +304,7 @@ class ClipAdapter(dl.BaseModelAdapter):
             item_files += (path / 'items').rglob(f"*.{ext}")
 
         for json_file in json_files:
+            logger.debug(f"Json file: {json_file}")
             with open(json_file, 'r') as f:
                 data = json.load(f)
             annotations = data['annotations']
