@@ -323,7 +323,8 @@ class ClipAdapter(dl.BaseModelAdapter):
                 else:
                     logger.debug("No free-text annotation found in json file.")
             item_captions.append(caption)
-        logger.debug(f"number of json files: {DEBUG_COUNT}")
+        logger.debug(f"number of item files: {len(item_files)}")
+        logger.debug(f"number of item captions: {len(item_captions)}")
         return item_files, item_captions
 
 
