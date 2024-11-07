@@ -40,6 +40,7 @@ class ImageTextDataset(Dataset):
 
     def __getitem__(self, idx):
         logger.debug(f"Idx: {idx}")
+        logger.debug(f"image path: {len(self.image_path)}")
         logger.debug(f"Image path: {self.image_path[idx]}")
 
         image = self.preprocess(Image.open(self.image_path[idx]))  # Image from PIL module
@@ -146,10 +147,11 @@ class ClipAdapter(dl.BaseModelAdapter):
         #                                  self.preprocess)
         # val_dataset = ImageTextDataset(*self.get_image_text_pairs(os.path.join(data_path, 'validation')),
         #                                self.preprocess)
+
         train_items, train_captions = self.get_image_text_pairs(os.path.join(data_path, 'train'))
         val_items, val_captions = self.get_image_text_pairs(os.path.join(data_path, 'validation'))
-        logger.debug(f"Num train items: {len(train_items)}")
-        logger.debug(f"Num val items: {len(val_items)}")
+        logger.debug(f"Num train items from get_image_text_pairs: {len(train_items)}")
+        logger.debug(f"Num val items from get_image_text_pairs: {len(val_items)}")
 
         train_dataset = ImageTextDataset(train_items, train_captions, self.preprocess)
         val_dataset = ImageTextDataset(val_items, val_captions, self.preprocess)
@@ -308,6 +310,7 @@ class ClipAdapter(dl.BaseModelAdapter):
         item_captions = []
         for ext in img_extensions:
             item_files += (path / 'items').rglob(f"*.{ext}")
+
         DEBUG_COUNT = 0
         for json_file in json_files:
             with open(json_file, 'r') as f:
@@ -317,6 +320,8 @@ class ClipAdapter(dl.BaseModelAdapter):
             for annot in annotations:
                 if annot['label'] == 'free-text':
                     caption = annot['coordinates']
+                else:
+                    logger.debug("No free-text annotation found in json file.")
             item_captions.append(caption)
         logger.debug(f"number of json files: {DEBUG_COUNT}")
         return item_files, item_captions
