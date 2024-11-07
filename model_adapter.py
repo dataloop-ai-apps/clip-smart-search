@@ -152,8 +152,8 @@ class ClipAdapter(dl.BaseModelAdapter):
                                            batch_size=batch_size),
                        'val': DataLoader(val_dataset,
                                          batch_size=batch_size)}
-        logger.debug(f"number of train items: {len(dataloaders['train'])}")
-        logger.debug(f"number of train items: {len(dataloaders['val'])}")
+        logger.debug(f"number of train batches: {len(dataloaders['train'])}")
+        logger.debug(f"number of val batches: {len(dataloaders['val'])}")
 
         logger.debug("Train and validation data loaders created")
 
