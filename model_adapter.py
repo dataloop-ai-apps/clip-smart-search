@@ -311,15 +311,13 @@ class ClipAdapter(dl.BaseModelAdapter):
         for ext in img_extensions:
             item_files += (path / 'items').rglob(f"*.{ext}")
 
-        DEBUG_COUNT = 0
         for json_file in json_files:
             with open(json_file, 'r') as f:
                 data = json.load(f)
-            DEBUG_COUNT += 1
             annotations = data['annotations']
             for annot in annotations:
                 if annot['label'] == 'free-text':
-                    caption = annot['coordinates']
+                    caption = annot.get('coordinates', '')
                 else:
                     logger.debug("No free-text annotation found in json file.")
             item_captions.append(caption)
