@@ -39,8 +39,8 @@ class ImageTextDataset(Dataset):
         return len(self.title)
 
     def __getitem__(self, idx):
-        logger.debug("Idx: {}")
-        logger.debug("Image path: {}".format(idx, self.image_path[idx]))
+        logger.debug(f"Idx: {idx}")
+        logger.debug(f"Image path: {self.image_path[idx]}")
 
         image = self.preprocess(Image.open(self.image_path[idx]))  # Image from PIL module
         title = self.title[idx]
@@ -281,7 +281,6 @@ class ClipAdapter(dl.BaseModelAdapter):
             item_files += (path / 'items').rglob(f"*.{ext}")
 
         json_files = (path / 'json').rglob("*.json")
-        logger.debug(f"Json files: {json_files}")
         for src, dst in zip([json_files, item_files], ['json', 'items']):
             for src_file in src:
                 if not os.path.exists(os.path.join(data_path, dst, os.path.basename(src_file))):
@@ -302,16 +301,18 @@ class ClipAdapter(dl.BaseModelAdapter):
         item_captions = []
         for ext in img_extensions:
             item_files += (path / 'items').rglob(f"*.{ext}")
-
+        DEBUG_COUNT = 0
         for json_file in json_files:
             logger.debug(f"Json file: {json_file}")
             with open(json_file, 'r') as f:
                 data = json.load(f)
+            DEBUG_COUNT += 1
             annotations = data['annotations']
             for annot in annotations:
                 if annot['label'] == 'free-text':
                     caption = annot['coordinates']
             item_captions.append(caption)
+        logger.debug(f"number of json files: {DEBUG_COUNT}")
         return item_files, item_captions
 
 
