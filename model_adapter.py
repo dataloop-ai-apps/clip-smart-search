@@ -7,6 +7,7 @@ import logging
 import shutil
 import dtlpy as dl
 import numpy as np
+from glob import glob
 from pathlib import Path
 from PIL import Image, ImageFile
 from tqdm import tqdm
@@ -237,7 +238,7 @@ class ClipAdapter(dl.BaseModelAdapter):
                 not_improving_epochs += 1
             if not_improving_epochs > early_stopping_epochs and early_stop:
                 if ((epoch + 1) - best_iter) > early_stopping_epochs:
-                    print("Early stop achieved at epoch ", epoch + 1)
+                    logger.info("Early stop achieved at epoch ", epoch + 1)
                     break
 
         return
@@ -304,6 +305,7 @@ class ClipAdapter(dl.BaseModelAdapter):
                 if not os.listdir(dir_path):
                     os.rmdir(dir_path)
         logger.debug(f"files moved: {os.path.join(data_path, dst, os.path.basename(src_file))}")
+        logger.debug(f"number of json files moved: {DEBUG_COUNT}")
 
         return
 
@@ -311,12 +313,24 @@ class ClipAdapter(dl.BaseModelAdapter):
     def get_image_text_pairs(data_path):
         logger.debug(f"Data path: {data_path}")
         path = Path(data_path)
-        json_files = (path / 'json').rglob("*.json")
-        img_extensions = ["jpg", "jpeg", "png", "bmp", "tiff"]
-        item_files = []
+
+        # img_extensions = ["jpg", "jpeg", "png", "bmp", "tiff"]
+        img_extensions = ["**/*.jpg", "**/*.jpeg", "**/*.png", "**/*.bmp", "**/*.tiff"]
+        images_set = set()
+        # item_files = []
         item_captions = []
         for ext in img_extensions:
-            item_files += (path / 'items').rglob(f"*.{ext}")
+            # item_files += (path / 'items').rglob(f"*.{ext}")
+            images_set.update(glob(os.path.join(data_path, 'items', '**', ext), recursive=True))
+        for ext in img_extensions:
+            images_set.update(glob(os.path.join(data_path, 'items', ext.split('/')[-1]), recursive=True))
+        item_files = list(images_set)
+
+        # json_files = (path / 'json').rglob("*.json")
+        json_set = set()
+        json_set.update(glob(os.path.join(data_path, 'json', '**', '**/*.json'), recursive=True))
+        json_set.update(glob(os.path.join(data_path, 'json', '*.json'), recursive=True))
+        json_files = list(json_set)
 
         for json_file in json_files:
             with open(json_file, 'r') as f:
