@@ -39,9 +39,9 @@ class ImageTextDataset(Dataset):
         return len(self.title)
 
     def __getitem__(self, idx):
-        # logger.debug(f"Idx: {idx}")
+        logger.debug(f"Idx: {idx}")
         # logger.debug(f"image path: {len(self.image_path)}")
-        # logger.debug(f"Image path: {self.image_path[idx]}")
+        logger.debug(f"Image path: {self.image_path[idx]}")
 
         image = self.preprocess(Image.open(self.image_path[idx]))  # Image from PIL module
         title = self.title[idx]
@@ -150,14 +150,14 @@ class ClipAdapter(dl.BaseModelAdapter):
 
         train_items, train_captions = self.get_image_text_pairs(os.path.join(data_path, 'train'))
         val_items, val_captions = self.get_image_text_pairs(os.path.join(data_path, 'validation'))
-        print(f"DEBUG Num train items from get_image_text_pairs: {len(train_items)}")
-        print(f"DEBUG Num val items from get_image_text_pairs: {len(val_items)}")
+        logger.debug(f"Num train items from get_image_text_pairs: {len(train_items)}")
+        logger.debug(f"Num val items from get_image_text_pairs: {len(val_items)}")
 
         train_dataset = ImageTextDataset(train_items, train_captions, self.preprocess)
         val_dataset = ImageTextDataset(val_items, val_captions, self.preprocess)
 
-        print(f"DEBUG {os.path.join(data_path, 'train')} is train path with {len(train_dataset)} items")
-        print(f"DEBUG {os.path.join(data_path, 'validation')} is val path with {len(val_dataset)} items")
+        logger.debug(f"{os.path.join(data_path, 'train')} is train path with {len(train_dataset)} items")
+        logger.debug(f"{os.path.join(data_path, 'validation')} is val path with {len(val_dataset)} items")
 
         dataloaders = {'train': DataLoader(train_dataset,
                                            batch_size=batch_size),
@@ -289,7 +289,7 @@ class ClipAdapter(dl.BaseModelAdapter):
         # img_extensions = ["jpg", "jpeg", "png", "bmp", "tiff"]
         # for ext in img_extensions:
         #     item_files += (path / 'items').rglob(f"*.{ext}")
-        print(f"DEBUG number of image files found: {len(item_files)}")
+        logger.debug(f"number of image files found: {len(item_files)}")
 
         json_files = (path / 'json').rglob("*.json")
         DEBUG_COUNT = 0
@@ -298,12 +298,13 @@ class ClipAdapter(dl.BaseModelAdapter):
                 if not os.path.exists(os.path.join(data_path, dst, os.path.basename(src_file))):
                     shutil.move(src_file, os.path.join(data_path, dst, os.path.basename(src_file)))
                     DEBUG_COUNT += 1
-                    # print(f"DEBUG moved file: {os.path.join(data_path, dst, os.path.basename(src_file))}")
         for root, dirs, files in os.walk(data_path, topdown=False):
             for dir_name in dirs:
                 dir_path = os.path.join(root, dir_name)
                 if not os.listdir(dir_path):
                     os.rmdir(dir_path)
+        logger.debug(f"files moved: {os.path.join(data_path, dst, os.path.basename(src_file))}")
+
         return
 
     @staticmethod
@@ -327,8 +328,8 @@ class ClipAdapter(dl.BaseModelAdapter):
                 else:
                     logger.debug("No free-text annotation found in json file.")
             item_captions.append(caption)
-        print(f"DEBUG number of local item files: {len(item_files)}")
-        print(f"DEBUG number item captions found: {len(item_captions)}")
+        logger.debug(f"number of local item files: {len(item_files)}")
+        logger.debug(f"number item captions found: {len(item_captions)}")
         return item_files, item_captions
 
 
