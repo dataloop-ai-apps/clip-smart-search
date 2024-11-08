@@ -11,11 +11,7 @@ from glob import glob
 from pathlib import Path
 from PIL import Image, ImageFile
 from tqdm import tqdm
-import concurrent.futures
 from concurrent.futures import ThreadPoolExecutor
-
-from dtlpy.utilities.dataset_generators.dataset_generator_torch import DatasetGenerator, DatasetGeneratorTorch
-from dtlpy.utilities.reports import Report, FigOptions, ConfusionMatrix
 
 import torch
 import torch.nn as nn
@@ -342,8 +338,11 @@ class ClipAdapter(dl.BaseModelAdapter):
                 else:
                     logger.debug("No free-text annotation found in json file.")
             item_captions.append(caption)
-        logger.debug(f"number of local item files: {len(item_files)}")
-        logger.debug(f"number item captions found: {len(item_captions)}")
+        logger.debug(f"number of local image files: {len(item_files)}")
+        logger.debug(f"number downloaded item captions: {len(item_captions)}")
+        logger.debug(f"discrepancy between image files and captions: {len(item_captions) - len(item_files)}")
+        logger.debug(f"item files: {item_files}")
+        logger.debug(f"item captions: {item_captions}")
         return item_files, item_captions
 
 
