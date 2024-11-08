@@ -255,8 +255,9 @@ class ClipAdapter(dl.BaseModelAdapter):
             if pages.items_count == 0:
                 raise ValueError(f'Could not find free-text annotations in subset {subset}. '
                                  f'Cannot train without annotations in the data subsets.')
-
+        logger.debug("moving train files")
         self.move_and_download_images(os.path.join(data_path, 'train'))
+        logger.debug("moving validation files")
         self.move_and_download_images(os.path.join(data_path, 'validation'))
 
     @staticmethod
@@ -292,9 +293,9 @@ class ClipAdapter(dl.BaseModelAdapter):
         DEBUG_COUNT = 0
         for src, dst in zip([json_files, item_files], ['json', 'items']):
             for src_file in src:
+                DEBUG_COUNT += 1
                 if not os.path.exists(os.path.join(data_path, dst, os.path.basename(src_file))):
                     shutil.move(src_file, os.path.join(data_path, dst, os.path.basename(src_file)))
-                    DEBUG_COUNT += 1
         for root, dirs, files in os.walk(data_path, topdown=False):
             for dir_name in dirs:
                 dir_path = os.path.join(root, dir_name)
