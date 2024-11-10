@@ -296,6 +296,7 @@ class ClipAdapter(dl.BaseModelAdapter):
                 DEBUG_COUNT += 1
                 if not os.path.exists(os.path.join(data_path, dst, os.path.basename(src_file))):
                     shutil.move(src_file, os.path.join(data_path, dst, os.path.basename(src_file)))
+
         for root, dirs, files in os.walk(data_path, topdown=False):
             for dir_name in dirs:
                 dir_path = os.path.join(root, dir_name)
@@ -312,7 +313,8 @@ class ClipAdapter(dl.BaseModelAdapter):
         path = Path(data_path)
 
         # img_extensions = ["jpg", "jpeg", "png", "bmp", "tiff"]
-        img_extensions = ["**/*.jpg", "**/*.jpeg", "**/*.png", "**/*.bmp", "**/*.tiff"]
+        img_extensions = ["**/*.jpg", "**/*.jpeg", "**/*.png", "**/*.bmp", "**/*.tiff",
+                          "**/*.JPG", "**/*.JPEG", "**/*.PNG", "**/*.BMP", "**/*.TIFF"]
         images_set = set()
         # item_files = []
         item_captions = []
