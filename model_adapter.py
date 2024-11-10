@@ -67,10 +67,10 @@ class ClipAdapter(dl.BaseModelAdapter):
             raise ValueError(f"Model {self.arch_name} is not an available architecture for CLIP.")
         self.model_name = "CLIP " + self.arch_name
 
-        model_filename = self.configuration.get('weights_filename', 'best.pt')
-        model_filepath = os.path.join(local_path, model_filename) if Path(
-            model_filename).stem not in clip.available_models() \
-            else model_filename
+        self.weights_filename = self.configuration.get('weights_filename', 'best.pt')
+        model_filepath = os.path.join(local_path, self.weights_filename) if Path(
+            self.weights_filename).stem not in clip.available_models() \
+            else self.weights_filename
         self.model, self.preprocess = clip.load(name=self.arch_name, device=self.device)
         if os.path.isfile(model_filepath):
             checkpoint = torch.load(model_filepath, map_location=self.device)
@@ -91,8 +91,7 @@ class ClipAdapter(dl.BaseModelAdapter):
 
         :param local_path: `str` directory path in local FileSystem
         """
-        weights_filename = self.model_entity.configuration.get('weights_filename', 'best.pt')
-        model_path = os.path.join(local_path, weights_filename)
+        model_path = os.path.join(local_path, self.weights_filename)
         torch.save(self.model, model_path)
         logger.info("Model saved to {}".format(model_path))
 
@@ -129,7 +128,6 @@ class ClipAdapter(dl.BaseModelAdapter):
 
         # early stopping params
         best_loss = np.inf
-        best_iter = 0
         not_improving_epochs = 0
         early_stop = self.configuration.get('early_stopping', True)
         early_stopping_epochs = self.configuration.get('early_stopping_epochs', 5)
@@ -226,19 +224,14 @@ class ClipAdapter(dl.BaseModelAdapter):
             if val_loss < best_loss:
                 not_improving_epochs = 0
                 best_loss = val_loss
-                best_iter = epoch + 1
                 logger.info(
-                    f'Validation loss decreased ({best_loss:.4f} --> {val_loss:.4f}).  Saving model ...')
-                torch.save(self.model.state_dict(), os.path.join(output_path,
-                                                                 self.model_entity.configuration.get('weights_filename',
-                                                                                                     'best.pt')))
+                    f'Validation loss decreased ({best_loss:.4f} --> {val_loss:.4f}). Saving model ...')
+                torch.save(self.model.state_dict(), os.path.join(output_path, self.weights_filename))
             else:
                 not_improving_epochs += 1
-            if not_improving_epochs > early_stopping_epochs and early_stop:
-                if ((epoch + 1) - best_iter) > early_stopping_epochs:
-                    logger.info("Early stop achieved at epoch ", epoch + 1)
-                    break
-
+            if not_improving_epochs > early_stopping_epochs and early_stop is True:
+                logger.info("Early stop achieved at epoch ", epoch + 1)
+                break
         return
 
     def convert_from_dtlpy(self, data_path, **kwargs):
