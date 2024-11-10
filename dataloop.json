@@ -160,7 +160,7 @@
         "moduleName": "clip-module",
         "scope": "project",
         "status": "pre-trained",
-        "inputType": "multimodal",
+        "inputType": "image",
         "outputType": "text",
         "configuration": {
           "model_name": "ViT-B/32",
