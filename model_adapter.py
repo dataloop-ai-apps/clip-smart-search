@@ -290,17 +290,17 @@ class ClipAdapter(dl.BaseModelAdapter):
                 dst_path = os.path.join(data_path, dst, os.path.basename(src_file))
                 if not os.path.exists(dst_path):
                     shutil.move(src_file, dst_path)
-            if dst == 'json':
-                with open(src, 'r') as f:
-                    data = json.load(f)
-                annotations = data['annotations']
-                for annot in annotations:
-                    if annot['label'] == 'free-text':
-                        caption = annot.get('coordinates', '')
-                    else:
-                        logger.debug("No free-text annotation found in json file.")
-                        caption = ''
-                item_captions.append(caption)
+                if dst == 'json':
+                    with open(src_file, 'r') as f:
+                        data = json.load(f)
+                    annotations = data['annotations']
+                    for annot in annotations:
+                        if annot['label'] == 'free-text':
+                            caption = annot.get('coordinates', '')
+                        else:
+                            logger.debug("No free-text annotation found in json file.")
+                            caption = ''
+                    item_captions.append(caption)
         for root, dirs, files in os.walk(data_path, topdown=False):
             for dir_name in dirs:
                 dir_path = os.path.join(root, dir_name)
