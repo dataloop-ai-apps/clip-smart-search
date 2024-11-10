@@ -261,6 +261,7 @@ class ClipAdapter(dl.BaseModelAdapter):
     @staticmethod
     def move_and_download_images(data_path):
         logger.debug(f"Data path: {data_path}")
+        print(f"Data path: {data_path}")
         path = Path(data_path)
 
         def download_stream(item_file):
@@ -276,8 +277,8 @@ class ClipAdapter(dl.BaseModelAdapter):
             item = dl.items.get(item_id=item_id)
             download_path = item.download(local_path=Path(item_file).parents[0])
             image_name = Path(item_file).stem + Path(download_path).suffix
-            new_path = Path(download_path).parents[0] / image_name
-            os.rename(download_path, new_path)
+            new_path = Path(item_file).parents[0] / image_name
+            os.rename(Path(download_path), new_path)
             print(rf"Downloaded {item.name} to {new_path}")
             logger.debug(f"Downloaded {item.name} to {new_path}")
             return new_path
@@ -285,7 +286,7 @@ class ClipAdapter(dl.BaseModelAdapter):
         item_jsons = (path / "items").rglob("*.json")
         # with ThreadPoolExecutor() as executor:
         #     item_files = [result for result in executor.map(download_stream, item_jsons)]
-        item_files = []  #DEBUG
+        item_files = []  # DEBUG
         for item_json in item_jsons:
             print(f"Item json: {item_json}")
             image_file = download_stream(item_json)
@@ -307,9 +308,10 @@ class ClipAdapter(dl.BaseModelAdapter):
                         else:
                             logger.debug("No free-text annotation found in json file.")
                             item_captions.append('')
-                dst_path = os.path.join(data_path, dst, os.path.basename(src_file))
-                if not os.path.exists(dst_path):
-                    shutil.move(src_file, dst_path)
+                # dst_path = os.path.join(data_path, dst, os.path.basename(src_file))
+                # print(f"Moving {src_file} to {dst_path}")
+                # if not os.path.exists(dst_path):
+                #     shutil.move(src_file, dst_path)
         for root, dirs, files in os.walk(data_path, topdown=False):
             for dir_name in dirs:
                 dir_path = os.path.join(root, dir_name)
@@ -363,8 +365,8 @@ if __name__ == "__main__":
     dl.setenv('rc')
     project = dl.projects.get(project_name='smart image search')
 
-    dataset = project.datasets.get(dataset_name='TACO 100 prompt items')
-    # dataset = project.datasets.get(dataset_name='TACO 3 prompt items')
+    # dataset = project.datasets.get(dataset_name='TACO 100 prompt items')
+    dataset = project.datasets.get(dataset_name='TACO 3 prompt items')
     model = project.models.get(model_name='clip-smart-search')
 
     model.metadata['system'] = {}
