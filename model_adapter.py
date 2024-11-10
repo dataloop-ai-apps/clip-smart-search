@@ -147,8 +147,8 @@ class ClipAdapter(dl.BaseModelAdapter):
         train_items, train_captions = self.move_and_download_images(os.path.join(data_path, 'train'))
         val_items, val_captions = self.move_and_download_images(os.path.join(data_path, 'validation'))
 
-        logger.debug(f"Num train items from get_image_text_pairs: {len(train_items)}")
-        logger.debug(f"Num val items from get_image_text_pairs: {len(val_items)}")
+        logger.debug(f"Num train items from move and download: {len(train_items)}")
+        logger.debug(f"Num val items from move and download: {len(val_items)}")
 
         train_dataset = ImageTextDataset(train_items, train_captions, self.preprocess)
         val_dataset = ImageTextDataset(val_items, val_captions, self.preprocess)
@@ -272,8 +272,8 @@ class ClipAdapter(dl.BaseModelAdapter):
             image_name = Path(item_file).stem + Path(download_path).suffix
             new_path = Path(item_file).parents[0] / image_name
             os.rename(Path(download_path), new_path)
-            print(rf"Downloaded {item.name} to {new_path}")
-            logger.debug(f"Downloaded {item.name} to {new_path}")
+            print(rf"Downloaded {image_name} to {new_path}")
+            logger.debug(f"Downloaded {image_name} to {new_path}")
             return new_path
 
         item_jsons = (path / "items").rglob("*.json")
@@ -361,6 +361,9 @@ if __name__ == "__main__":
     # dataset = project.datasets.get(dataset_name='TACO 100 prompt items')
     dataset = project.datasets.get(dataset_name='TACO 3 prompt items')
     model = project.models.get(model_name='clip-smart-search')
+    # dl.setenv('prod')
+    # project = dl.projects.get(project_name='Model mgmt demo')
+    # dataset = project.datasets.get(dataset_name='TACO 100 prompt items')
 
     model.metadata['system'] = {}
     model.metadata['system']['subsets'] = {}
