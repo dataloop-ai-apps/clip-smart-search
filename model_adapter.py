@@ -144,9 +144,11 @@ class ClipAdapter(dl.BaseModelAdapter):
         #                                  self.preprocess)
         # val_dataset = ImageTextDataset(*self.get_image_text_pairs(os.path.join(data_path, 'validation')),
         #                                self.preprocess)
+        # train_items, train_captions = self.get_image_text_pairs(os.path.join(data_path, 'train'))
+        # val_items, val_captions = self.get_image_text_pairs(os.path.join(data_path, 'validation'))
+        train_items, train_captions = self.move_and_download_images(os.path.join(data_path, 'train'))
+        val_items, val_captions = self.move_and_download_images(os.path.join(data_path, 'validation'))
 
-        train_items, train_captions = self.get_image_text_pairs(os.path.join(data_path, 'train'))
-        val_items, val_captions = self.get_image_text_pairs(os.path.join(data_path, 'validation'))
         logger.debug(f"Num train items from get_image_text_pairs: {len(train_items)}")
         logger.debug(f"Num val items from get_image_text_pairs: {len(val_items)}")
 
@@ -255,10 +257,6 @@ class ClipAdapter(dl.BaseModelAdapter):
             if pages.items_count == 0:
                 raise ValueError(f'Could not find free-text annotations in subset {subset}. '
                                  f'Cannot train without annotations in the data subsets.')
-        logger.debug("moving train files")
-        self.move_and_download_images(os.path.join(data_path, 'train'))
-        logger.debug("moving validation files")
-        self.move_and_download_images(os.path.join(data_path, 'validation'))
 
     @staticmethod
     def move_and_download_images(data_path):
@@ -283,29 +281,32 @@ class ClipAdapter(dl.BaseModelAdapter):
         item_jsons = (path / "items").rglob("*.json")
         with ThreadPoolExecutor() as executor:
             item_files = [result for result in executor.map(download_stream, item_jsons)]
-        # this doubles the file path list
-        # img_extensions = ["jpg", "jpeg", "png", "bmp", "tiff"]
-        # for ext in img_extensions:
-        #     item_files += (path / 'items').rglob(f"*.{ext}")
         logger.debug(f"number of image files found: {len(item_files)}")
 
+        item_captions = []
         json_files = (path / 'json').rglob("*.json")
-        DEBUG_COUNT = 0
         for src, dst in zip([json_files, item_files], ['json', 'items']):
             for src_file in src:
-                DEBUG_COUNT += 1
-                if not os.path.exists(os.path.join(data_path, dst, os.path.basename(src_file))):
-                    shutil.move(src_file, os.path.join(data_path, dst, os.path.basename(src_file)))
-
+                dst_path = os.path.join(data_path, dst, os.path.basename(src_file))
+                if not os.path.exists(dst_path):
+                    shutil.move(src_file, dst_path)
+            if dst == 'json':
+                with open(src, 'r') as f:
+                    data = json.load(f)
+                annotations = data['annotations']
+                for annot in annotations:
+                    if annot['label'] == 'free-text':
+                        caption = annot.get('coordinates', '')
+                    else:
+                        logger.debug("No free-text annotation found in json file.")
+                        caption = ''
+                item_captions.append(caption)
         for root, dirs, files in os.walk(data_path, topdown=False):
             for dir_name in dirs:
                 dir_path = os.path.join(root, dir_name)
                 if not os.listdir(dir_path):
                     os.rmdir(dir_path)
-        logger.debug(f"files moved: {os.path.join(data_path, dst, os.path.basename(src_file))}")
-        logger.debug(f"number of json files moved: {DEBUG_COUNT}")
-
-        return
+        return item_files, item_captions
 
     @staticmethod
     def get_image_text_pairs(data_path):
