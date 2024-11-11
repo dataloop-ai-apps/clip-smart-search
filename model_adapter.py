@@ -18,7 +18,6 @@ import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader, random_split
 
 
-# https://github.com/openai/CLIP/issues/57
 def convert_models_to_fp32(model):
     for p in model.parameters():
         p.data = p.data.float()
@@ -36,10 +35,6 @@ class ImageTextDataset(Dataset):
         return len(self.title)
 
     def __getitem__(self, idx):
-        logger.debug(f"Idx: {idx}")
-        # logger.debug(f"image path: {len(self.image_path)}")
-        logger.debug(f"Image path: {self.image_path[idx]}")
-
         image = self.preprocess(Image.open(self.image_path[idx]))  # Image from PIL module
         title = self.title[idx]
         return image, title
@@ -52,9 +47,6 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 # clip available models: ['RN50', 'RN101', 'RN50x4', 'RN50x16', 'RN50x64', 'ViT-B/32', 'ViT-B/16', 'ViT-L/14', 'ViT-L/14@336px']
 
 
-@dl.Package.decorators.module(name='model-adapter',
-                              description='Model Adapter for CLIP text and image embedding model from OpenAI',
-                              init_inputs={'model_entity': dl.Model})
 class ClipAdapter(dl.BaseModelAdapter):
     """
     Model Adapter for CLIP text and image embedding model from OpenAI
@@ -71,15 +63,16 @@ class ClipAdapter(dl.BaseModelAdapter):
         model_filepath = os.path.join(local_path, self.weights_filename) if Path(
             self.weights_filename).stem not in clip.available_models() \
             else self.weights_filename
-        self.model, self.preprocess = clip.load(name=self.arch_name, device=self.device)
-        if os.path.isfile(model_filepath):
-            checkpoint = torch.load(model_filepath, map_location=self.device)
-            # Use these 3 lines if you use default model setting (not training setting) of the clip.
-            # checkpoint['model_state_dict']["input_resolution"] = self.model.input_resolution  # default is 224
-            # checkpoint['model_state_dict']["context_length"] = self.model.context_length  # default is 77
-            # checkpoint['model_state_dict']["vocab_size"] = self.model.vocab_size
 
-            self.model.load_state_dict(checkpoint['model_state_dict'])
+        self.model, self.preprocess = clip.load(name=self.arch_name, device=self.device)
+        if os.path.isfile(model_filepath) is True:
+            # self.model, self.preprocess = clip.load(name=model_filepath, device=self.device)
+            checkpoint = torch.load(model_filepath)
+            # Use these 3 lines if you use default model setting (not training setting) of the clip.
+            checkpoint["input_resolution"] = self.model.input_resolution  # default is 224
+            checkpoint["context_length"] = self.model.context_length  # default is 77
+            checkpoint["vocab_size"] = self.model.vocab_size
+            self.model.load_state_dict(checkpoint)
         else:
             logger.info("No previously saved model found, loading from default pre-trained weights.")
         self.model.eval()
@@ -92,7 +85,7 @@ class ClipAdapter(dl.BaseModelAdapter):
         :param local_path: `str` directory path in local FileSystem
         """
         model_path = os.path.join(local_path, self.weights_filename)
-        torch.save(self.model, model_path)
+        torch.save({'model_state_dict': self.model.state_dict()}, model_path)
         logger.info("Model saved to {}".format(model_path))
 
     def embed(self, batch, **kwargs):
@@ -138,32 +131,17 @@ class ClipAdapter(dl.BaseModelAdapter):
         ################
         # prepare data #
         ################
-        # train_dataset = ImageTextDataset(*self.get_image_text_pairs(os.path.join(data_path, 'train')),
-        #                                  self.preprocess)
-        # val_dataset = ImageTextDataset(*self.get_image_text_pairs(os.path.join(data_path, 'validation')),
-        #                                self.preprocess)
-        # train_items, train_captions = self.get_image_text_pairs(os.path.join(data_path, 'train'))
-        # val_items, val_captions = self.get_image_text_pairs(os.path.join(data_path, 'validation'))
         train_items, train_captions = self.move_and_download_images(os.path.join(data_path, 'train'))
         val_items, val_captions = self.move_and_download_images(os.path.join(data_path, 'validation'))
-
-        logger.debug(f"Num train items from move and download: {len(train_items)}")
-        logger.debug(f"Num val items from move and download: {len(val_items)}")
-
         train_dataset = ImageTextDataset(train_items, train_captions, self.preprocess)
         val_dataset = ImageTextDataset(val_items, val_captions, self.preprocess)
-
-        logger.debug(f"{os.path.join(data_path, 'train')} is train path with {len(train_dataset)} items")
-        logger.debug(f"{os.path.join(data_path, 'validation')} is val path with {len(val_dataset)} items")
 
         dataloaders = {'train': DataLoader(train_dataset,
                                            batch_size=batch_size),
                        'val': DataLoader(val_dataset,
                                          batch_size=batch_size)}
-        logger.debug(f"number of train batches: {len(dataloaders['train'])}")
-        logger.debug(f"number of val batches: {len(dataloaders['val'])}")
-
-        logger.debug("Train and validation data loaders created")
+        logger.info(
+            f"Dataloaders created. Train dataset: {len(train_dataset)} items, validation dataset: {len(val_dataset)} items.")
 
         #################
         # prepare model #
@@ -215,7 +193,6 @@ class ClipAdapter(dl.BaseModelAdapter):
 
                     # forward pass
                     logits_per_image, logits_per_text = self.model(images, texts)
-
                     # calc loss
                     ground_truth = torch.arange(len(images), dtype=torch.long, device=self.device)
                     val_loss = (loss_img(logits_per_image, ground_truth) + loss_txt(logits_per_text, ground_truth)) / 2
@@ -254,7 +231,6 @@ class ClipAdapter(dl.BaseModelAdapter):
     @staticmethod
     def move_and_download_images(data_path):
         logger.debug(f"Data path: {data_path}")
-        print(f"Data path: {data_path}")
         path = Path(data_path)
 
         def download_stream(item_file):
@@ -272,26 +248,20 @@ class ClipAdapter(dl.BaseModelAdapter):
             image_name = Path(item_file).stem + Path(download_path).suffix
             new_path = Path(item_file).parents[0] / image_name
             os.rename(Path(download_path), new_path)
-            print(rf"Downloaded {image_name} to {new_path}")
-            logger.debug(f"Downloaded {image_name} to {new_path}")
             return new_path
 
         item_jsons = (path / "items").rglob("*.json")
         # with ThreadPoolExecutor() as executor:
-        #     item_files = [result for result in executor.map(download_stream, item_jsons)]
-        item_files = []  # DEBUG
-        for item_json in item_jsons:
-            print(f"Item json: {item_json}")
-            image_file = download_stream(item_json)
-            print(f"Image file: {image_file}")
-            item_files.append(image_file)
-        logger.debug(f"number of image files found: {len(item_files)}")
+        #     item_images = [result for result in executor.map(download_stream, item_jsons)]
+        item_images = [] # DEBUG
+        for item_file in item_jsons:
+            item_images.append(download_stream(item_file))
 
         item_captions = []
         json_files = (path / 'json').rglob("*.json")
-        for src, dst in zip([json_files, item_files], ['json', 'items']):
-            for src_file in src:
-                if dst == 'json':
+        for all_files, json_type in zip([json_files, item_images], ['json', 'items']):
+            for src_file in all_files:
+                if json_type == 'json':
                     with open(src_file, 'r') as f:
                         data = json.load(f)
                     annotations = data['annotations']
@@ -299,59 +269,14 @@ class ClipAdapter(dl.BaseModelAdapter):
                         if annot['label'] == 'free-text':
                             item_captions.append(annot.get('coordinates', ''))
                         else:
-                            logger.debug("No free-text annotation found in json file.")
+                            logger.debug(f"No free-text annotation found in json file {src_file}.")
                             item_captions.append('')
-                # dst_path = os.path.join(data_path, dst, os.path.basename(src_file))
-                # print(f"Moving {src_file} to {dst_path}")
-                # if not os.path.exists(dst_path):
-                #     shutil.move(src_file, dst_path)
         for root, dirs, files in os.walk(data_path, topdown=False):
             for dir_name in dirs:
                 dir_path = os.path.join(root, dir_name)
                 if not os.listdir(dir_path):
                     os.rmdir(dir_path)
-        return item_files, item_captions
-
-    @staticmethod
-    def get_image_text_pairs(data_path):
-        logger.debug(f"Data path: {data_path}")
-        path = Path(data_path)
-
-        # img_extensions = ["jpg", "jpeg", "png", "bmp", "tiff"]
-        img_extensions = ["**/*.jpg", "**/*.jpeg", "**/*.png", "**/*.bmp", "**/*.tiff",
-                          "**/*.JPG", "**/*.JPEG", "**/*.PNG", "**/*.BMP", "**/*.TIFF"]
-        images_set = set()
-        # item_files = []
-        item_captions = []
-        for ext in img_extensions:
-            # item_files += (path / 'items').rglob(f"*.{ext}")
-            images_set.update(glob(os.path.join(data_path, 'items', '**', ext), recursive=True))
-        for ext in img_extensions:
-            images_set.update(glob(os.path.join(data_path, 'items', ext.split('/')[-1]), recursive=True))
-        item_files = list(images_set)
-
-        # json_files = (path / 'json').rglob("*.json")
-        json_set = set()
-        json_set.update(glob(os.path.join(data_path, 'json', '**', '**/*.json'), recursive=True))
-        json_set.update(glob(os.path.join(data_path, 'json', '*.json'), recursive=True))
-        json_files = list(json_set)
-
-        for json_file in json_files:
-            with open(json_file, 'r') as f:
-                data = json.load(f)
-            annotations = data['annotations']
-            for annot in annotations:
-                if annot['label'] == 'free-text':
-                    caption = annot.get('coordinates', '')
-                else:
-                    logger.debug("No free-text annotation found in json file.")
-            item_captions.append(caption)
-        logger.debug(f"number of local image files: {len(item_files)}")
-        logger.debug(f"number downloaded item captions: {len(item_captions)}")
-        logger.debug(f"discrepancy between image files and captions: {len(item_captions) - len(item_files)}")
-        logger.debug(f"item files: {item_files}")
-        logger.debug(f"item captions: {item_captions}")
-        return item_files, item_captions
+        return item_images, item_captions
 
 
 if __name__ == "__main__":
@@ -361,6 +286,7 @@ if __name__ == "__main__":
     # dataset = project.datasets.get(dataset_name='TACO 100 prompt items')
     dataset = project.datasets.get(dataset_name='TACO 3 prompt items')
     model = project.models.get(model_name='clip-smart-search')
+
     # dl.setenv('prod')
     # project = dl.projects.get(project_name='Model mgmt demo')
     # dataset = project.datasets.get(dataset_name='TACO 100 prompt items')
@@ -374,6 +300,7 @@ if __name__ == "__main__":
     model.metadata['system']['subsets']['train'] = train_filters.prepare()
     model.metadata['system']['subsets']['validation'] = val_filters.prepare()
     model.name = 'CLIP ' + model.configuration['model_name']
+    model.configuration = {'num_epochs': 2}
 
     new_model = model.clone(model_name=model.name + ' SFT', dataset=dataset)
     new_model.output_type = 'text'
