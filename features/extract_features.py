@@ -1,14 +1,19 @@
 import tqdm
-from PIL import Image, ImageFile
-import dtlpy as dl
+import clip
+import json
 import logging
+import os
+import shutil
 import torch
 import time
-import clip
+import dtlpy as dl
+
+from PIL import Image, ImageFile
+from io import BytesIO
+from pathlib import Path
+
 import concurrent.futures
 from concurrent.futures import ThreadPoolExecutor
-from io import BytesIO
-import json
 
 logger = logging.getLogger('[CLIP-SEARCH]')
 ImageFile.LOAD_TRUNCATED_IMAGES = True
@@ -53,6 +58,22 @@ class ClipExtractor(dl.BaseServiceRunner):
         self.feature_set = feature_set
         # self.feature_vector_entities = [fv.entity_id for fv in self.feature_set.features.list().all()]
 
+    def extract_from_data(self, item: dl.Item, image: Image.Image = None, text=None):
+        if image is not None:
+            image = self.preprocess(image).unsqueeze(0).to(self.device)
+            features = self.model.encode_image(image)
+        elif text is not None:
+            tokens = clip.tokenize([text], context_length=77).to(self.device)
+            features = self.model.encode_text(tokens)
+        else:
+            raise ValueError('Either image or text is required')
+        embedding = features[0].cpu().detach().numpy().tolist()
+        try:
+            feature_vector = self.feature_set.features.create(value=embedding, entity=item)
+        except dl.exceptions.BadRequest:
+            logger.error(f'Error creating feature vector for item id: {item.id}, feature vector already exists!')
+        return
+
     def extract_item(self, item: dl.Item) -> dl.Item:
         # if item.id in self.feature_vector_entities:
         #     logger.info(f'Item {item.id} already has feature vector')
@@ -62,23 +83,15 @@ class ClipExtractor(dl.BaseServiceRunner):
         # assert False
         if 'image/' in item.mimetype:
             orig_image = Image.fromarray(item.download(save_locally=False, to_array=True))
-            # orig_image = Image.open(filepath)
-            image = self.preprocess(orig_image).unsqueeze(0).to(self.device)
-            features = self.model.encode_image(image)
+            # orig_image = Image.open(item)
+            features = self.extract_from_data(item=item, image=orig_image)
         elif 'text/' in item.mimetype:
             text = item.download(save_locally=False).read().decode()
             # TODO get the length of input text currently hardcoded to 200
-            tokens = clip.tokenize([text[:200]], context_length=77).to(self.device)
-            features = self.model.encode_text(tokens)
+            features = self.extract_from_data(item=item, text=text[:200])
         else:
             raise ValueError(f'Unsupported mimetype for clip: {item.mimetype}')
-        output = features[0].cpu().detach().numpy().tolist()
-        try:
-            self.feature_set.features.create(value=output, entity=item)
-        except dl.exceptions.BadRequest:
-            logger.error(f'Error creating feature vector for item id: {item.id}, feature vector already exists!')
         logger.info(f'Done. runtime: {(time.time() - tic):.2f}[s]')
-        # self.feature_vector_entities.append(item.id)
         return item
 
     def extract_dataset(self, dataset: dl.Dataset, query=None, progress=None):
@@ -86,29 +99,44 @@ class ClipExtractor(dl.BaseServiceRunner):
         filters.add(field='metadata.system.mimetype', values="image/*", method=dl.FILTERS_METHOD_OR)
         filters.add(field='metadata.system.mimetype', values="text/*", method=dl.FILTERS_METHOD_OR)
 
-        pages = dataset.items.list(filters=filters)
-        pbar = tqdm.tqdm(total=pages.items_count)
+        items_path = os.path.join(os.getcwd(), dataset.id)
+        item_filepaths = dataset.items.download(filters=filters,
+                                                local_path=items_path,
+                                                annotation_options=dl.ViewAnnotationOptions.JSON)
+        item_filepaths = list(item_filepaths)
+        items = list()
+        for item_path in item_filepaths:
+            json_path = Path(item_path.replace('items', 'json')).with_suffix('.json')
+            with open(json_path, 'r') as f:
+                data = json.load(f)
+            item = dl.Item.from_json(_json=data, client_api=dl.client_api)
+            items.append(item)
+        pbar = tqdm.tqdm(total=len(items))
+
         with ThreadPoolExecutor() as executor:
-            futures = [executor.submit(self.extract_item, obj) for obj in pages.all()]
+            futures = [executor.submit(self.extract_item, item) for item in items]
             done_count = 0
             previous_update = 0
             while futures:
                 done, futures = concurrent.futures.wait(futures, return_when=concurrent.futures.FIRST_COMPLETED)
                 done_count += len(done)
                 pbar.update(len(done))
-                current_progress = done_count * 100 // pages.items_count
+                current_progress = done_count * 100 // len(items)
 
                 if (current_progress // 10) % 10 > previous_update:
                     previous_update = (current_progress // 10) % 10
                     if progress is not None:
                         progress.update(progress=previous_update * 10)
                     else:
-                        logger.info(f'Extracted {done_count} out of {pages.items_count} items')
+                        logger.info(f'Extracted {done_count} out of {len(items)} items')
+
+        shutil.rmtree(items_path)
         return dataset
 
 
 if __name__ == "__main__":
+    dl.setenv('')
     project = dl.projects.get(project_id='')
     app = ClipExtractor(project=project)
-    dataset = dl.datasets.get(dataset_id='')
+    dataset = project.datasets.get(dataset_id='')
     app.extract_dataset(dataset=dataset)
