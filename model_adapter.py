@@ -203,7 +203,7 @@ class ClipAdapter(dl.BaseModelAdapter):
                 best_loss = val_loss
                 logger.info(
                     f'Validation loss decreased ({best_loss:.4f} --> {val_loss:.4f}). Saving model ...')
-                torch.save(self.model.state_dict(), os.path.join(output_path, self.weights_filename))
+                torch.save({'model_state_dict': self.model.state_dict()}, os.path.join(output_path, self.weights_filename))
             else:
                 not_improving_epochs += 1
             if not_improving_epochs > early_stopping_epochs and early_stop is True:
