@@ -66,13 +66,13 @@ class ClipAdapter(dl.BaseModelAdapter):
 
         self.model, self.preprocess = clip.load(name=self.arch_name, device=self.device)
         if os.path.isfile(model_filepath) is True:
-            # self.model, self.preprocess = clip.load(name=model_filepath, device=self.device)
-            checkpoint = torch.load(model_filepath)
+            self.model, self.preprocess = clip.load(name=model_filepath, device=self.device, jit=False)
+            checkpoint = torch.load(model_filepath, weights_only=True)
             # Use these 3 lines if you use default model setting (not training setting) of the clip.
-            checkpoint["input_resolution"] = self.model.input_resolution  # default is 224
-            checkpoint["context_length"] = self.model.context_length  # default is 77
-            checkpoint["vocab_size"] = self.model.vocab_size
-            self.model.load_state_dict(checkpoint)
+            # checkpoint["input_resolution"] = self.model.input_resolution  # default is 224
+            # checkpoint["context_length"] = self.model.context_length  # default is 77
+            # checkpoint["vocab_size"] = self.model.vocab_size
+            self.model.load_state_dict(checkpoint['model_state_dict'])
         else:
             logger.info("No previously saved model found, loading from default pre-trained weights.")
         self.model.eval()
@@ -131,8 +131,8 @@ class ClipAdapter(dl.BaseModelAdapter):
         ################
         # prepare data #
         ################
-        train_items, train_captions = self.move_and_download_images(os.path.join(data_path, 'train'))
-        val_items, val_captions = self.move_and_download_images(os.path.join(data_path, 'validation'))
+        train_items, train_captions = self.get_images_and_text(os.path.join(data_path, 'train'))
+        val_items, val_captions = self.get_images_and_text(os.path.join(data_path, 'validation'))
         train_dataset = ImageTextDataset(train_items, train_captions, self.preprocess)
         val_dataset = ImageTextDataset(val_items, val_captions, self.preprocess)
 
@@ -229,11 +229,11 @@ class ClipAdapter(dl.BaseModelAdapter):
                                  f'Cannot train without annotations in the data subsets.')
 
     @staticmethod
-    def move_and_download_images(data_path):
+    def get_images_and_text(data_path, overwrite=True):
         logger.debug(f"Data path: {data_path}")
         path = Path(data_path)
 
-        def download_stream(item_file):
+        def download_stream(item_file, overwrite=True):
             with open(item_file) as json_data:
                 d = json.load(json_data)
             caption_info = d['prompts']['img_caption']
@@ -247,19 +247,27 @@ class ClipAdapter(dl.BaseModelAdapter):
             download_path = item.download(local_path=Path(item_file).parents[0])
             image_name = Path(item_file).stem + Path(download_path).suffix
             new_path = Path(item_file).parents[0] / image_name
-            os.rename(Path(download_path), new_path)
+            try:
+                os.rename(Path(download_path), new_path)
+            except FileExistsError:
+                if overwrite is True:
+                    logger.debug(f"Overwriting file {new_path}.")
+                    os.remove(new_path)
+                    os.rename(Path(download_path), new_path)
+                else:
+                    logger.debug(f"File {new_path} already exists. Skipping.")
             return new_path
 
         item_jsons = (path / "items").rglob("*.json")
-        # with ThreadPoolExecutor() as executor:
-        #     item_images = [result for result in executor.map(download_stream, item_jsons)]
-        item_images = [] # DEBUG
-        for item_file in item_jsons:
-            item_images.append(download_stream(item_file))
+        with ThreadPoolExecutor() as executor:
+            image_paths = [result for result in executor.map(download_stream, item_jsons)]
+        # image_paths = []  # DEBUG
+        # for item_file in item_jsons:
+        #     image_paths.append(download_stream(item_file=item_file, overwrite=overwrite))
 
         item_captions = []
         json_files = (path / 'json').rglob("*.json")
-        for all_files, json_type in zip([json_files, item_images], ['json', 'items']):
+        for all_files, json_type in zip([json_files, image_paths], ['json', 'items']):
             for src_file in all_files:
                 if json_type == 'json':
                     with open(src_file, 'r') as f:
@@ -276,7 +284,7 @@ class ClipAdapter(dl.BaseModelAdapter):
                 dir_path = os.path.join(root, dir_name)
                 if not os.listdir(dir_path):
                     os.rmdir(dir_path)
-        return item_images, item_captions
+        return image_paths, item_captions
 
 
 if __name__ == "__main__":
