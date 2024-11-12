@@ -53,7 +53,7 @@ class ClipAdapter(dl.BaseModelAdapter):
     """
 
     def load(self, local_path, **kwargs):
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.arch_name = self.model_entity.configuration.get("model_name", "ViT-B/32")
         if self.arch_name not in clip.available_models():
             raise ValueError(f"Model {self.arch_name} is not an available architecture for CLIP.")
@@ -64,16 +64,16 @@ class ClipAdapter(dl.BaseModelAdapter):
             self.weights_filename).stem not in clip.available_models() \
             else self.weights_filename
 
-        self.model, self.preprocess = clip.load(name=self.arch_name, device=self.device)
         if os.path.isfile(model_filepath) is True:
             self.model, self.preprocess = clip.load(name=model_filepath, device=self.device)
-            checkpoint = torch.load(model_filepath, weights_only=True)
+            checkpoint = torch.load(model_filepath, map_location=self.device)
             # Use these 3 lines if you use default model setting (not training setting) of the clip.
             # checkpoint["input_resolution"] = self.model.input_resolution  # default is 224
             # checkpoint["context_length"] = self.model.context_length  # default is 77
             # checkpoint["vocab_size"] = self.model.vocab_size
             self.model.load_state_dict(checkpoint['model_state_dict'])
         else:
+            self.model, self.preprocess = clip.load(name=self.arch_name, device=self.device)
             logger.info("No previously saved model found, loading from default pre-trained weights.")
         self.model.eval()
         logger.info("Loaded model {} successfully".format(self.model_name))
@@ -292,7 +292,7 @@ if __name__ == "__main__":
     dl.setenv('rc')
     project = dl.projects.get(project_name='smart image search')
 
-    # dataset = project.datasets.get(dataset_name='TACO 100 prompt items')
+    dataset = project.datasets.get(dataset_name='TACO 100 prompt items')
     # dataset = project.datasets.get(dataset_name='TACO 3 prompt items')
     model = project.models.get(model_name='clip-smart-search')
 

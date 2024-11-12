@@ -78,6 +78,7 @@
         "name": "clip-module",
         "entryPoint": "model_adapter.py",
         "className": "ClipAdapter",
+        "computeConfig": "clip-cpu",
         "description": "CLIP model adapter for search with NLP",
         "initInputs": [
           {
@@ -109,6 +110,7 @@
           },
           {
             "name": "embed_items",
+
             "input": [
               {
                 "type": "Item[]",
@@ -187,6 +189,21 @@
           }
         },
         "executionTimeout": 36000000
+      },
+      {
+        "name": "clip-cpu",
+        "runtime": {
+          "podType": "regular-s",
+          "concurrency": 1,
+          "runnerImage": "gcr.io/viewo-g/piper/agent/runner/apps/clip-smart-search:0.1.2",
+          "autoscaler": {
+            "type": "rabbitmq",
+            "minReplicas": 0,
+            "maxReplicas": 2,
+            "queueLength": 100
+          }
+        },
+        "executionTimeout": 3600
       }
     ],
     "services": [

@@ -1,83 +1,99 @@
 import logging
 import os
+import torch
+import tqdm
 import dtlpy as dl
+import numpy as np
 import pandas as pd
 
+from clip import clip
 from PIL import Image
 from matplotlib import pyplot as plt
 from model_adapter import ClipAdapter
+from pathlib import Path
 from sklearn.metrics.pairwise import cosine_similarity
+
 
 dl.setenv('rc')
 logger = logging.getLogger('clip-smart-search')
 
 project = dl.projects.get('smart image search')
-# model_entity = project.models.get(model_name='CLIP ViT-B/32 SFT-PSicV')
-# model_entity = project.models.get(model_name='clip-smart-search-o44in_2024_11_11-T11_03_29')
-model_entity = project.models.get(model_id='6732dfe92aa895346cc469e9')  # trained tuesday morning
-
-app = ClipAdapter()
-app.load_from_model(model_entity=model_entity, overwrite=False)
-
 dataset = project.datasets.get(dataset_name='TACO 100')
-app.embed_dataset(dataset=dataset, upload_features=True)
+model_entity = dl.models.get(model_id='6732dfe92aa895346cc469e9')  # trained tuesday morning
 
-image_features = dataset.features.get(feature_name=model_entity.name)
+# embed images
+# app = ClipAdapter()
+# app.device = torch.cpu
+# app.load_from_model(model_entity=model_entity, overwrite=False)
+# app.embed_dataset(dataset=dataset, upload_features=True)
+
+model_path = 'best.pt'
+model, preprocess = clip.load("ViT-B/32", device="cpu", jit=False)
+checkpoint = torch.load(model_path, map_location="cpu", weights_only=True)
+model.load_state_dict(checkpoint['model_state_dict'])
+model.eval()
+
+# get the feature vectors
+# image_features = project.feature_sets.get(feature_set_name=model_entity.name)
+
+img_paths = dataset.download(local_path=os.path.join(os.getcwd(), '.dataloop'),
+                             annotation_options=dl.VIEW_ANNOTATION_OPTIONS_JSON,
+                             overwrite=False)
+imgs_list = list(img_paths)
+
+images = []
+pbar = tqdm.tqdm(total=len(imgs_list))
+for img_path in imgs_list:
+    image = Image.open(img_path).convert("RGB")
+    images.append(preprocess(image))
+    pbar.update()
+
+# create image features
+image_input = torch.tensor(np.stack(images)).to("cpu")
+with torch.no_grad():
+    image_features = model.encode_image(image_input)
+    # text_features = model.encode_text(text_tokens)
+    # logits_per_image, logits_per_text = model(images, text_features)
+    # probs = logits_per_text.softmax(dim=-1).cpu().numpy()
+image_features /= image_features.norm(dim=-1, keepdim=True)
 
 # create text/query feature
 QUERY_STRING = "alumininum can outside"
 
-text_tokens = app.embed([QUERY_STRING])
-
-dataset.download(local_path=os.path.join(os.getcwd(), '.dataloop'),
-                 annotation_options=dl.VIEW_ANNOTATION_OPTIONS_JSON)
+text_tokens = clip.tokenize([QUERY_STRING]).to("cpu")
+with torch.no_grad():
+    text_features = model.encode_text(text_tokens)
+text_features /= text_features.norm(dim=-1, keepdim=True)
 
 # Pick the top 10 most similar images for the text/query
-result = cosine_similarity(text_tokens.cpu().numpy(), image_features.cpu().numpy())
+result = cosine_similarity(text_features.cpu().numpy(), image_features.cpu().numpy())
 
 results_dict = {'name': [], 'prob': [], 'filepath': []}
 
-# pbar = tqdm.tqdm(total=len(img_paths))
-# for i, img_path in enumerate(img_paths):
-#     results_dict['name'].append(Path(img_path).name)
-#     results_dict['prob'].append(result[0][i])
-#     results_dict['filepath'].append(img_path)
-#     results_dict.update()
-#     pbar.update()
+pbar = tqdm.tqdm(total=len(imgs_list))
+for i, img_path in enumerate(imgs_list):
+    results_dict['name'].append(Path(img_path).name)
+    results_dict['prob'].append(result[0][i])
+    results_dict['filepath'].append(img_path)
+    results_dict.update()
+    pbar.update()
 
 results_df = pd.DataFrame(results_dict)
 results_df.sort_values(by=['prob'], ascending=False, inplace=True)
 
 print(results_df.iloc[:9][['name', 'prob']])
 
-plt.figure(figsize=(16, 16))
-for i, img_path in enumerate(results_df['filepath'].iloc[:9]):
-    plt.subplot(3, 3, i + 1)
-    image = Image.open(img_path).convert("RGB")
-    plt.imshow(image)
+image = Image.open(results_df['filepath'].iloc[0]).convert("RGB")
+image.show()
 
-plt.suptitle(f"Query: {QUERY_STRING}")
-plt.show()
-
-
-def offline_embed():
-    data_path = dataset.download(local_path=os.path.join(os.getcwd(), '.dataloop'),
-                                 annotation_options=dl.VIEW_ANNOTATION_OPTIONS_JSON)
-    img_paths, captions = app.get_images_and_text(data_path=data_path)
-
-    images = []
-    for img_path in img_paths:
-        img = Image.open(img_path)
-        images.append(app.preprocess(img))
-
-    embeddings = app.embed(images)
-
-    # upload the feature vectors
-
-    app._upload_model_features()
-
-
-# features = dataset.features.get(feature_name=model_entity.name)
+# plt.figure(figsize=(16, 16))
+# for i, img_path in enumerate(results_df['filepath'].iloc[:9]):
+#     plt.subplot(3, 3, i + 1)
+#     image = Image.open(img_path).convert("RGB")
+#     plt.imshow(image)
+#
+# plt.suptitle(f"Query: {QUERY_STRING}")
+# plt.show()
 
 
 def create_feature_set(self, project: dl.Project):
