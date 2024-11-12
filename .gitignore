@@ -164,3 +164,4 @@ dataloop_scripts/
 data
 tmp/
 .dataloop/
+*.pt

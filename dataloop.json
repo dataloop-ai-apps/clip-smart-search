@@ -110,7 +110,6 @@
           },
           {
             "name": "embed_items",
-
             "input": [
               {
                 "type": "Item[]",
@@ -162,8 +161,8 @@
         "moduleName": "clip-module",
         "scope": "project",
         "status": "pre-trained",
-        "inputType": "image",
-        "outputType": "text",
+        "inputType": "text",
+        "outputType": "image",
         "configuration": {
           "model_name": "ViT-B/32",
           "embeddings_size": 512,
@@ -186,7 +185,8 @@
             "minReplicas": 0,
             "maxReplicas": 2,
             "queueLength": 100
-          }
+          },
+          "preemptible": false
         },
         "executionTimeout": 36000000
       },
@@ -201,7 +201,8 @@
             "minReplicas": 0,
             "maxReplicas": 2,
             "queueLength": 100
-          }
+          },
+          "preemptible": false
         },
         "executionTimeout": 3600
       }

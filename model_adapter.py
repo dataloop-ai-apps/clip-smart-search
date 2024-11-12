@@ -5,6 +5,7 @@ import clip
 import json
 import logging
 import shutil
+import time
 import dtlpy as dl
 import numpy as np
 from glob import glob
@@ -142,9 +143,9 @@ class ClipAdapter(dl.BaseModelAdapter):
                                          batch_size=batch_size)}
         logger.info(
             f"Dataloaders created. Train dataset: {len(train_dataset)} items, validation dataset: {len(val_dataset)} items.")
-        logger.debug(f"Pytorch version: {torch.__version__}")
+
         #################
-            # prepare model #
+        # prepare model #
         #################
         if self.device == "cpu":
             self.model.float()
@@ -158,6 +159,10 @@ class ClipAdapter(dl.BaseModelAdapter):
                                      weight_decay=weight_decay)
 
         for epoch in range(num_epochs):
+            running_loss = 0.0
+            total_imgs = 0
+
+            tepoch_time = time.time()
             with tqdm(dataloaders['train'], unit="batch") as tepoch:
                 tepoch.set_description(f"Epoch {epoch + 1}/{num_epochs}...")
                 for idx, batch in enumerate(tepoch):
@@ -175,6 +180,7 @@ class ClipAdapter(dl.BaseModelAdapter):
                     total_loss = (loss_img(logits_per_image, ground_truth) + loss_txt(logits_per_text,
                                                                                       ground_truth)) / 2
                     total_loss.backward()
+
                     if self.device == "cpu":
                         optimizer.step()
                     else:
@@ -183,6 +189,24 @@ class ClipAdapter(dl.BaseModelAdapter):
                         clip.model.convert_weights(self.model)
                     tepoch.set_postfix(Training_loss=f"{total_loss.item():.4f}")
 
+                    # statistics
+                    total_imgs += images.size(0)
+                    running_loss += (total_loss.item() * images.size(0))
+                    epoch_loss = running_loss / total_imgs
+
+                logger.info(
+                    f'Epoch {epoch}/{num_epochs} - Train - Loss: {total_loss:.4f}, Duration {(time.time() - tepoch_time):.2f}')
+
+                self.model_entity.metrics.create(samples=dl.PlotSample(figure='loss',
+                                                                       legend='train',
+                                                                       x=epoch,
+                                                                       y=total_loss),
+                                                 dataset_id=self.model_entity.dataset_id)
+                self.model_entity.metrics['history'].append({'phase': 'train',
+                                                             'epoch': epoch,
+                                                             'loss': epoch_loss})
+
+            vepoch_time = time.time()
             with tqdm(dataloaders['val'], unit="batch") as vepoch:
                 vepoch.set_description("  Validation...")
                 for batch in vepoch:
@@ -198,11 +222,23 @@ class ClipAdapter(dl.BaseModelAdapter):
                     val_loss = (loss_img(logits_per_image, ground_truth) + loss_txt(logits_per_text, ground_truth)) / 2
                     vepoch.set_postfix(Validation_loss=f"{val_loss.item():.4f}")
 
+                logger.info(
+                    f'Epoch {epoch}/{num_epochs} - Val - Loss: {total_loss:.4f}, Duration {(time.time() - vepoch_time):.2f}')
+
+                self.model_entity.metrics.create(samples=dl.PlotSample(figure='loss',
+                                                                       legend='val',
+                                                                       x=epoch,
+                                                                       y=total_loss),
+                                                 dataset_id=self.model_entity.dataset_id)
+                self.model_entity.metrics['history'].append({'phase': 'val',
+                                                             'epoch': epoch,
+                                                             'loss': epoch_loss})
+
             if val_loss < best_loss:
                 not_improving_epochs = 0
                 best_loss = val_loss
                 logger.info(
-                    f'Validation loss decreased ({best_loss:.4f} --> {val_loss:.4f}). Saving model ...')
+                    f'Best validation loss decreased ({best_loss:.4f} --> {val_loss:.4f}). Saving model ...')
                 torch.save({'model_state_dict': self.model.state_dict()},
                            os.path.join(output_path, self.weights_filename))
             else:
