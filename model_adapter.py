@@ -65,8 +65,8 @@ class ClipAdapter(dl.BaseModelAdapter):
             else self.weights_filename
 
         if os.path.isfile(model_filepath) is True:
-            self.model, self.preprocess = clip.load(name=model_filepath, device="cpu")
-            checkpoint = torch.load(model_filepath, map_location="cpu")
+            self.model, self.preprocess = clip.load(name=model_filepath, device=self.device)
+            checkpoint = torch.load(model_filepath, map_location=self.device)
             # Use these 3 lines if you use default model setting (not training setting) of the clip.
             # checkpoint["input_resolution"] = self.model.input_resolution  # default is 224
             # checkpoint["context_length"] = self.model.context_length  # default is 77
