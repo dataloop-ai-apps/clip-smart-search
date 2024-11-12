@@ -293,27 +293,27 @@ if __name__ == "__main__":
     project = dl.projects.get(project_name='smart image search')
 
     # dataset = project.datasets.get(dataset_name='TACO 100 prompt items')
-    dataset = project.datasets.get(dataset_name='TACO 3 prompt items')
+    # dataset = project.datasets.get(dataset_name='TACO 3 prompt items')
     model = project.models.get(model_name='clip-smart-search')
 
     # dl.setenv('prod')
     # project = dl.projects.get(project_name='Model mgmt demo')
     # dataset = project.datasets.get(dataset_name='TACO 100 prompt items')
 
-    model.metadata['system'] = {}
-    model.metadata['system']['subsets'] = {}
-
-    train_filters = dl.Filters(field='metadata.system.tags.train', values=True)
-    val_filters = dl.Filters(field='metadata.system.tags.validation', values=True)
-
-    model.metadata['system']['subsets']['train'] = train_filters.prepare()
-    model.metadata['system']['subsets']['validation'] = val_filters.prepare()
-    model.name = 'CLIP ' + model.configuration['model_name']
-    model.configuration = {"model_name": "ViT-B/32",
-                           "embeddings_size": 512,
-                           "batch_size": 32,
-                           "early_stopping": True,
-                           "early_stopping_epochs": 5}
+    # model.metadata['system'] = {}
+    # model.metadata['system']['subsets'] = {}
+    #
+    # train_filters = dl.Filters(field='metadata.system.tags.train', values=True)
+    # val_filters = dl.Filters(field='metadata.system.tags.validation', values=True)
+    #
+    # model.metadata['system']['subsets']['train'] = train_filters.prepare()
+    # model.metadata['system']['subsets']['validation'] = val_filters.prepare()
+    # # model.name = 'CLIP ' + model.configuration['model_name']
+    # model.configuration = {"model_name": "ViT-B/32",
+    #                        "embeddings_size": 512,
+    #                        "batch_size": 32,
+    #                        "early_stopping": True,
+    #                        "early_stopping_epochs": 5}
 
     new_model = model.clone(model_name=model.name + ' SFT', dataset=dataset)
     new_model.output_type = 'text'

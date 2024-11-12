@@ -8,12 +8,13 @@ from matplotlib import pyplot as plt
 from model_adapter import ClipAdapter
 from sklearn.metrics.pairwise import cosine_similarity
 
+dl.setenv('rc')
 logger = logging.getLogger('clip-smart-search')
 
 project = dl.projects.get('smart image search')
 # model_entity = project.models.get(model_name='CLIP ViT-B/32 SFT-PSicV')
 # model_entity = project.models.get(model_name='clip-smart-search-o44in_2024_11_11-T11_03_29')
-model_entity = project.models.get(model_id='67320739bba6dc99e2667274')
+model_entity = project.models.get(model_id='6732dfe92aa895346cc469e9')  # trained tuesday morning
 
 app = ClipAdapter()
 app.load_from_model(model_entity=model_entity, overwrite=False)
@@ -24,7 +25,7 @@ app.embed_dataset(dataset=dataset, upload_features=True)
 image_features = dataset.features.get(feature_name=model_entity.name)
 
 # create text/query feature
-QUERY_STRING = "alumininum can"
+QUERY_STRING = "alumininum can outside"
 
 text_tokens = app.embed([QUERY_STRING])
 
@@ -59,7 +60,7 @@ plt.suptitle(f"Query: {QUERY_STRING}")
 plt.show()
 
 
-def homemade_embed():
+def offline_embed():
     data_path = dataset.download(local_path=os.path.join(os.getcwd(), '.dataloop'),
                                  annotation_options=dl.VIEW_ANNOTATION_OPTIONS_JSON)
     img_paths, captions = app.get_images_and_text(data_path=data_path)
