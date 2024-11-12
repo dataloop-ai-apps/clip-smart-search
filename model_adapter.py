@@ -65,8 +65,8 @@ class ClipAdapter(dl.BaseModelAdapter):
             else self.weights_filename
 
         if os.path.isfile(model_filepath) is True:
-            self.model, self.preprocess = clip.load(name=model_filepath, device=self.device)
-            checkpoint = torch.load(model_filepath, map_location=self.device)
+            self.model, self.preprocess = clip.load(name=model_filepath, device="cpu")
+            checkpoint = torch.load(model_filepath, map_location="cpu")
             # Use these 3 lines if you use default model setting (not training setting) of the clip.
             # checkpoint["input_resolution"] = self.model.input_resolution  # default is 224
             # checkpoint["context_length"] = self.model.context_length  # default is 77
@@ -226,8 +226,8 @@ class ClipAdapter(dl.BaseModelAdapter):
             filters = dl.Filters(custom_filter=filters_dict)
             pages = self.model_entity.dataset.items.list(filters=filters)
             if pages.items_count == 0:
-                raise ValueError(f'Could not find free-text annotations in subset {subset}. '
-                                 f'Cannot train without annotations in the data subsets.')
+                raise ValueError(f'Could not find items with free-text annotations in subset {subset}. '
+                                 f'Make sure there are items with annotations in the data subsets.')
 
     @staticmethod
     def get_images_and_text(data_path, overwrite=True):

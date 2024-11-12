@@ -8,11 +8,11 @@ import pandas as pd
 
 from clip import clip
 from PIL import Image
-from matplotlib import pyplot as plt
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
 from model_adapter import ClipAdapter
 from pathlib import Path
 from sklearn.metrics.pairwise import cosine_similarity
-
 
 dl.setenv('rc')
 logger = logging.getLogger('clip-smart-search')
@@ -83,8 +83,19 @@ results_df.sort_values(by=['prob'], ascending=False, inplace=True)
 
 print(results_df.iloc[:9][['name', 'prob']])
 
-image = Image.open(results_df['filepath'].iloc[0]).convert("RGB")
-image.show()
+
+fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+plt.suptitle(f"Query: {QUERY_STRING}")
+
+for i, ax in enumerate(axes):
+    img = mpimg.imread(results_df['filepath'].iloc[i])
+    ax.imshow(img)
+    ax.axis('off')
+    ax.set_title(f'Best matching image {i + 1}')
+
+plt.tight_layout()
+plt.show()
+
 
 # plt.figure(figsize=(16, 16))
 # for i, img_path in enumerate(results_df['filepath'].iloc[:9]):
