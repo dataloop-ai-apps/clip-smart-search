@@ -66,7 +66,7 @@ class ClipAdapter(dl.BaseModelAdapter):
 
         self.model, self.preprocess = clip.load(name=self.arch_name, device=self.device)
         if os.path.isfile(model_filepath) is True:
-            self.model, self.preprocess = clip.load(name=model_filepath, device=self.device, jit=False)
+            self.model, self.preprocess = clip.load(name=model_filepath, device=self.device)
             checkpoint = torch.load(model_filepath, weights_only=True)
             # Use these 3 lines if you use default model setting (not training setting) of the clip.
             # checkpoint["input_resolution"] = self.model.input_resolution  # default is 224
@@ -142,9 +142,9 @@ class ClipAdapter(dl.BaseModelAdapter):
                                          batch_size=batch_size)}
         logger.info(
             f"Dataloaders created. Train dataset: {len(train_dataset)} items, validation dataset: {len(val_dataset)} items.")
-
+        logger.debug(f"Pytorch version: {torch.__version__}")
         #################
-        # prepare model #
+            # prepare model #
         #################
         if self.device == "cpu":
             self.model.float()
@@ -203,7 +203,8 @@ class ClipAdapter(dl.BaseModelAdapter):
                 best_loss = val_loss
                 logger.info(
                     f'Validation loss decreased ({best_loss:.4f} --> {val_loss:.4f}). Saving model ...')
-                torch.save({'model_state_dict': self.model.state_dict()}, os.path.join(output_path, self.weights_filename))
+                torch.save({'model_state_dict': self.model.state_dict()},
+                           os.path.join(output_path, self.weights_filename))
             else:
                 not_improving_epochs += 1
             if not_improving_epochs > early_stopping_epochs and early_stop is True:
@@ -308,7 +309,11 @@ if __name__ == "__main__":
     model.metadata['system']['subsets']['train'] = train_filters.prepare()
     model.metadata['system']['subsets']['validation'] = val_filters.prepare()
     model.name = 'CLIP ' + model.configuration['model_name']
-    model.configuration = {'num_epochs': 2}
+    model.configuration = {"model_name": "ViT-B/32",
+                           "embeddings_size": 512,
+                           "batch_size": 32,
+                           "early_stopping": True,
+                           "early_stopping_epochs": 5}
 
     new_model = model.clone(model_name=model.name + ' SFT', dataset=dataset)
     new_model.output_type = 'text'

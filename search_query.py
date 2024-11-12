@@ -1,15 +1,19 @@
 import logging
 import os
 import dtlpy as dl
+import pandas as pd
 
 from PIL import Image
+from matplotlib import pyplot as plt
 from model_adapter import ClipAdapter
+from sklearn.metrics.pairwise import cosine_similarity
 
 logger = logging.getLogger('clip-smart-search')
 
 project = dl.projects.get('smart image search')
 # model_entity = project.models.get(model_name='CLIP ViT-B/32 SFT-PSicV')
-model_entity = project.models.get(model_name='clip-smart-search-o44in_2024_11_11-T11_03_29')
+# model_entity = project.models.get(model_name='clip-smart-search-o44in_2024_11_11-T11_03_29')
+model_entity = project.models.get(model_id='67320739bba6dc99e2667274')
 
 app = ClipAdapter()
 app.load_from_model(model_entity=model_entity, overwrite=False)
@@ -17,28 +21,28 @@ app.load_from_model(model_entity=model_entity, overwrite=False)
 dataset = project.datasets.get(dataset_name='TACO 100')
 app.embed_dataset(dataset=dataset, upload_features=True)
 
-
+image_features = dataset.features.get(feature_name=model_entity.name)
 
 # create text/query feature
 QUERY_STRING = "alumininum can"
 
-text_tokens = clip.tokenize([QUERY_STRING]).to(device)
-with torch.no_grad():
-    text_features = model.encode_text(text_tokens)
-text_features /= text_features.norm(dim=-1, keepdim=True)
+text_tokens = app.embed([QUERY_STRING])
+
+dataset.download(local_path=os.path.join(os.getcwd(), '.dataloop'),
+                 annotation_options=dl.VIEW_ANNOTATION_OPTIONS_JSON)
 
 # Pick the top 10 most similar images for the text/query
-result = cosine_similarity(text_features.cpu().numpy(), image_features.cpu().numpy())
+result = cosine_similarity(text_tokens.cpu().numpy(), image_features.cpu().numpy())
 
 results_dict = {'name': [], 'prob': [], 'filepath': []}
 
-pbar = tqdm.tqdm(total=len(img_paths))
-for i, img_path in enumerate(img_paths):
-    results_dict['name'].append(Path(img_path).name)
-    results_dict['prob'].append(result[0][i])
-    results_dict['filepath'].append(img_path)
-    results_dict.update()
-    pbar.update()
+# pbar = tqdm.tqdm(total=len(img_paths))
+# for i, img_path in enumerate(img_paths):
+#     results_dict['name'].append(Path(img_path).name)
+#     results_dict['prob'].append(result[0][i])
+#     results_dict['filepath'].append(img_path)
+#     results_dict.update()
+#     pbar.update()
 
 results_df = pd.DataFrame(results_dict)
 results_df.sort_values(by=['prob'], ascending=False, inplace=True)
