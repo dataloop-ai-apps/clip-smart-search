@@ -157,11 +157,7 @@ Thumbs.db
 *.wmv
 
 
-checkpoints/
-output/
-*.npy
-dataloop_scripts/
-data
+*.pt
 tmp/
 .dataloop/
-*.pt
+/_dataloop/

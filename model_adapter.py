@@ -4,11 +4,10 @@ import os
 import clip
 import json
 import logging
-import shutil
 import time
 import dtlpy as dl
 import numpy as np
-from glob import glob
+import pandas as pd
 from pathlib import Path
 from PIL import Image, ImageFile
 from tqdm import tqdm
@@ -16,14 +15,13 @@ from concurrent.futures import ThreadPoolExecutor
 
 import torch
 import torch.nn as nn
-from torch.utils.data import Dataset, DataLoader, random_split
+from torch.utils.data import Dataset, DataLoader
+
+logger = logging.getLogger('[CLIP-SEARCH]')
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
-def convert_models_to_fp32(model):
-    for p in model.parameters():
-        p.data = p.data.float()
-        p.grad.data = p.grad.data.float()
-
+# clip available models: ['RN50', 'RN101', 'RN50x4', 'RN50x16', 'RN50x64', 'ViT-B/32', 'ViT-B/16', 'ViT-L/14', 'ViT-L/14@336px']
 
 class ImageTextDataset(Dataset):
     def __init__(self, list_image_path, list_txt, preprocess):
@@ -41,11 +39,10 @@ class ImageTextDataset(Dataset):
         return image, title
 
 
-logger = logging.getLogger('[CLIP-SEARCH]')
-ImageFile.LOAD_TRUNCATED_IMAGES = True
-
-
-# clip available models: ['RN50', 'RN101', 'RN50x4', 'RN50x16', 'RN50x64', 'ViT-B/32', 'ViT-B/16', 'ViT-L/14', 'ViT-L/14@336px']
+def convert_models_to_fp32(model):
+    for p in model.parameters():
+        p.data = p.data.float()
+        p.grad.data = p.grad.data.float()
 
 
 class ClipAdapter(dl.BaseModelAdapter):
@@ -66,7 +63,7 @@ class ClipAdapter(dl.BaseModelAdapter):
             else self.weights_filename
 
         if os.path.isfile(model_filepath) is True:
-            self.model, self.preprocess = clip.load(name=model_filepath, device=self.device)
+            self.model, self.preprocess = clip.load(name=model_filepath, device=self.device, jit=False)
             checkpoint = torch.load(model_filepath, map_location=self.device)
             # Use these 3 lines if you use default model setting (not training setting) of the clip.
             # checkpoint["input_resolution"] = self.model.input_resolution  # default is 224
@@ -266,7 +263,7 @@ class ClipAdapter(dl.BaseModelAdapter):
                                  f'Make sure there are items with annotations in the data subsets.')
 
     @staticmethod
-    def get_images_and_text(data_path, overwrite=True):
+    def get_images_and_text(data_path, overwrite):
         logger.debug(f"Data path: {data_path}")
         path = Path(data_path)
 
@@ -322,6 +319,82 @@ class ClipAdapter(dl.BaseModelAdapter):
                 if not os.listdir(dir_path):
                     os.rmdir(dir_path)
         return image_paths, item_captions
+
+    @staticmethod
+    def upload_items_with_description(dataset, pairs_filepath: str):
+        # description will be uploaded from csv w/ image filepath + text
+        data_pairs = pd.read_csv(pairs_filepath)
+        for index, row in data_pairs.iterrows():
+            file_path = row['filepath']
+            annots_path = file_path.replace('items', 'json')
+            file_name = Path(file_path).name
+            item = dataset.items.upload(local_path=file_path,
+                                        local_annotations_path=annots_path,
+                                        item_metadata=dl.ExportMetadata.FROM_JSON,
+                                        overwrite=True)
+            item.set_description(text=row['img_description'])
+            item.update()
+            print(f"Uploaded {file_name} with description: '{row['img_description']}'")
+        return True
+
+    @staticmethod
+    def convert_dataset_for_clip(dataset_src, filters=None, existing_subsets=True):
+        """
+        Converts a dataset of images with descriptions to a dataset of prompt items for CLIP
+        :param dataset_src: dl.Dataset
+        :param existing_subsets: optional boolean to keep existing subsets from original items
+        :return: dataset with prompt items
+        """
+        project = dataset_src.project
+        dataset_name = dataset_src.name + "PROMPT ITEMS"
+        try:
+            new_dataset = project.datasets.get(dataset_name=dataset_name)
+        except dl.exceptions.NotFound:
+            new_dataset = project.datasets.create(dataset_name=dataset_name)
+
+        items = dataset_src.items.list(filters=filters)
+        for item in items.all():
+            item = dataset_src.items.get(item_id=item.id)
+            prompt_item = _convert_item(item, new_dataset, existing_subsets)
+        new_dataset.switch_recipe(dataset_src.get_recipe_ids()[0])
+        return new_dataset
+
+
+def _convert_item(item_src: dl.Item, dataset: dl.Dataset = None, prompt_key=None, existing_subsets=False):
+    if dataset is None:
+        dataset = item_src.dataset
+    try:
+        caption = item_src.description
+    except TypeError:
+        print(f"Item {item_src.id} has no description. Using blank description.")
+        caption = ''
+    new_name = Path(item_src.name).stem + '.json'
+
+    prompt_item = dl.PromptItem(name=new_name)
+    if prompt_key is None:
+        prompt_key = "img_caption"
+    prompt = dl.Prompt(key=prompt_key)
+    prompt.add_element(mimetype=dl.PromptType.IMAGE, value=item_src.stream)
+    prompt_item.prompts.append(prompt)
+
+    new_item = dataset.items.upload(prompt_item,
+                                    remote_name=new_name,
+                                    remote_path=item_src.dir,
+                                    overwrite=True)
+    annotations = dl.AnnotationCollection()
+    annotations.add(annotation_definition=dl.FreeText(text=caption),
+                    prompt_id=prompt_key,
+                    model_info={'name': 'GT',
+                                'confidence': 1})
+    new_item.annotations.upload(annotations)
+    if existing_subsets is True:
+        try:
+            new_item.metadata['system']['subsets'] = item_src.metadata['system']['subsets']
+        except KeyError:
+            new_item.metadata['system'] = {}
+            new_item.metadata['system']['subsets'] = item_src.metadata['system']['subsets']
+        new_item.update()
+    return new_item
 
 
 if __name__ == "__main__":

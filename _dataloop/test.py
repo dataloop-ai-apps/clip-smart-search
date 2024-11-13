@@ -9,10 +9,10 @@ import torch
 dl.setenv('rc')
 m = dl.models.get(None, '6732dfe92aa895346cc469e9')
 
-local_path = m.artifacts.download(local_path='.')
+local_path = m.artifacts.download(local_path='..')
 model, preprocess = clip.load("ViT-B/32", device='cpu')
 
-checkpoint = torch.load(r"best.pt", map_location='cpu')
+checkpoint = torch.load(r"../best.pt", map_location='cpu')
 
 model.load_state_dict(checkpoint['model_state_dict'])
 
@@ -21,3 +21,10 @@ model.load_state_dict(checkpoint['model_state_dict'])
 dl.setenv('prod')
 mm = dl.models.get(model_id="673334351881e27f94cbb1ca")
 mm.metrics.list().print()
+
+
+execution = dl.executions.get(execution_id='673472f52031ab723ddbda71')
+execution.terminate()
+
+pipe = dl.pipelines.get(pipeline_id='6733032a4daa1bd214d7dd5b')
+pipe.execute()

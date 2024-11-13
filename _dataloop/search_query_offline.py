@@ -20,7 +20,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 project = dl.projects.get('smart image search')
 # model_entity = project.models.get(model_name='CLIP ViT-B/32 SFT-PSicV')
 model_entity = project.models.get(model_name='clip-smart-search-o44in_2024_11_11-T11_03_29')
-model_path = r'C:\Users\Yaya Tang\PycharmProjects\clip-smart-search\best.pt'
+model_path = r'/best.pt'
 # model_path = r'C:\Users\Yaya Tang\.dataloop\models\clclip-smart-search-o44in_2024_11_11-T11_03_29\best.pt'
 # model_path = r'C:\Users\Yaya Tang\PycharmProjects\clip-smart-search\tmp\6731d515bba6dc4ca4667227\output\best.pt'
 
@@ -36,7 +36,7 @@ model.eval()
 ##################
 
 # img_paths = model_entity.dataset.download()
-data_path = r"C:\Users\Yaya Tang\PycharmProjects\clip-smart-search\tmp\6731d515bba6dc4ca4667227\datasets\672cc229e773c08bacdfedad\train"
+data_path = r"/tmp/6731d515bba6dc4ca4667227/datasets/672cc229e773c08bacdfedad/train"
 img_paths, _ = ClipAdapter.get_images_and_text(data_path=data_path, overwrite=False)
 
 images = []

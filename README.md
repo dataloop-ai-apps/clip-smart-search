@@ -17,8 +17,8 @@ first need to carefully study their capabilities in relation to the specific con
 
 There are multiple ways to install the Semantic (CLIP) application:
 
-1. **From the Market Place**:
-    - Go to the MarketPlace
+1. **From the Marketplace**:
+    - Go to the Marketplace browser
     - Search for the Semantic (CLIP) application
     - Click on the application and click install button on the right hand side
 
