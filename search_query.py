@@ -1,5 +1,6 @@
 import logging
 import os
+import datetime
 import torch
 import tqdm
 import dtlpy as dl
@@ -130,6 +131,8 @@ for i in range(3):
 
 plt.tight_layout(rect=[0, 0.03, 1, 0.95])  # Adjust layout to make room for the title
 plt.show()
+plt.savefig(f'clip_vs_sft_{datetime.datetime.now().strftime("%Y_%m_%d-T%H_%M_%S")}.png')
+
 
 
 def create_feature_set(self, project: dl.Project):
