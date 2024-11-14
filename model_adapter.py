@@ -11,7 +11,7 @@ import pandas as pd
 from pathlib import Path
 from PIL import Image, ImageFile
 from tqdm import tqdm
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import torch
 import torch.nn as nn
@@ -62,7 +62,7 @@ class ClipAdapter(dl.BaseModelAdapter):
             self.weights_filename).stem not in clip.available_models() \
             else self.weights_filename
 
-        if os.path.isfile(model_filepath) is True and self.model_entity.status != 'pre-trained':
+        if os.path.isfile(model_filepath) is True:  # and self.model_entity.status != 'pre-trained':
             self.model, self.preprocess = clip.load(name=model_filepath, device=self.device, jit=False)
             checkpoint = torch.load(model_filepath, map_location=self.device)
             # Use these 3 lines if you use default model setting (not training setting) of the clip.
@@ -263,11 +263,11 @@ class ClipAdapter(dl.BaseModelAdapter):
                                  f'Make sure there are items with annotations in the data subsets.')
 
     @staticmethod
-    def get_images_and_text(data_path, overwrite=True):
+    def get_images_and_text(data_path, overwrite=False):
         logger.debug(f"Data path: {data_path}")
         path = Path(data_path)
 
-        def download_stream(item_file, overwrite=True):
+        def download_stream(item_file, overwrite=False):
             with open(item_file) as json_data:
                 d = json.load(json_data)
             caption_info = d['prompts']['img_caption']
@@ -293,9 +293,11 @@ class ClipAdapter(dl.BaseModelAdapter):
             return new_path
 
         item_jsons = (path / "items").rglob("*.json")
-        args = [(item_file, overwrite) for item_file in item_jsons]
         with ThreadPoolExecutor() as executor:
-            image_paths = executor.map(lambda d: download_stream(*d), args)
+            image_paths = list(executor.map(lambda item_file: download_stream(item_file, overwrite), item_jsons))
+        # image_paths = []  # DEBUG
+        # for item_file in item_jsons:
+        #     image_paths.append(download_stream(item_file, overwrite))
 
         item_captions = []
         json_files = (path / 'json').rglob("*.json")
@@ -396,34 +398,39 @@ def _convert_item(item_src: dl.Item, dataset: dl.Dataset = None, prompt_key=None
 
 
 if __name__ == "__main__":
-    dl.setenv('rc')
-    project = dl.projects.get(project_name='smart image search')
+    # dl.setenv('rc')
+    # project = dl.projects.get(project_name='smart image search')
+    #
+    # dataset = project.datasets.get(dataset_name='TACO 100 prompt items')
+    # # dataset = project.datasets.get(dataset_name='TACO 3 prompt items')
 
-    dataset = project.datasets.get(dataset_name='TACO 100 prompt items')
-    # dataset = project.datasets.get(dataset_name='TACO 3 prompt items')
+    dl.setenv('prod')
+    project = dl.projects.get(project_name='Model mgmt demo')
+    dataset = project.datasets.get(dataset_name='taco 100 prompt items')
     model = project.models.get(model_name='clip-smart-search')
 
-    # dl.setenv('prod')
-    # project = dl.projects.get(project_name='Model mgmt demo')
-    # dataset = project.datasets.get(dataset_name='TACO 100 prompt items')
+    model.metadata['system'] = {}
+    model.metadata['system']['subsets'] = {}
 
-    # model.metadata['system'] = {}
-    # model.metadata['system']['subsets'] = {}
-    #
-    # train_filters = dl.Filters(field='metadata.system.tags.train', values=True)
-    # val_filters = dl.Filters(field='metadata.system.tags.validation', values=True)
-    #
-    # model.metadata['system']['subsets']['train'] = train_filters.prepare()
-    # model.metadata['system']['subsets']['validation'] = val_filters.prepare()
-    # # model.name = 'CLIP ' + model.configuration['model_name']
-    # model.configuration = {"model_name": "ViT-B/32",
-    #                        "embeddings_size": 512,
-    #                        "batch_size": 32,
-    #                        "early_stopping": True,
-    #                        "early_stopping_epochs": 5}
+    train_filters = dl.Filters(field='metadata.system.tags.train', values=True)
+    val_filters = dl.Filters(field='metadata.system.tags.validation', values=True)
+
+    model.metadata['system']['subsets']['train'] = train_filters.prepare()
+    model.metadata['system']['subsets']['validation'] = val_filters.prepare()
+    model.configuration = {"model_name": "ViT-B/32",
+                           "embeddings_size": 512,
+                           "num_epochs": 20,
+                           "batch_size": 32,
+                           "early_stopping": True,
+                           "early_stopping_epochs": 5}
 
     new_model = model.clone(model_name=model.name + ' SFT', dataset=dataset)
-    new_model.output_type = 'text'
 
     app = ClipAdapter(model_entity=new_model)
     app.train_model(model=new_model)
+    #
+    # dl.setenv('prod')
+    # model_entity = dl.models.get(model_id="67330300d0718511c312b185")
+    # app = ClipAdapter()
+    # app.load_from_model(model_entity=model_entity)
+    # app.train_model()
