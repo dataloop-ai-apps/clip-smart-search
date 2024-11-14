@@ -197,7 +197,7 @@ class ClipAdapter(dl.BaseModelAdapter):
                 self.model_entity.metrics.create(samples=dl.PlotSample(figure='loss',
                                                                        legend='train',
                                                                        x=epoch,
-                                                                       y=total_loss),
+                                                                       y=total_loss.item()),
                                                  dataset_id=self.model_entity.dataset_id)
                 self.model_entity.metrics['history'].append({'phase': 'train',
                                                              'epoch': epoch,
