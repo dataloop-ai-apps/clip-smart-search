@@ -222,11 +222,8 @@ class ClipAdapter(dl.BaseModelAdapter):
                 self.model_entity.metrics.create(samples=dl.PlotSample(figure='loss',
                                                                        legend='val',
                                                                        x=epoch,
-                                                                       y=total_loss),
+                                                                       y=total_loss.item()),
                                                  dataset_id=self.model_entity.dataset_id)
-                self.model_entity.metrics['history'].append({'phase': 'val',
-                                                             'epoch': epoch,
-                                                             'loss': epoch_loss})
 
             if val_loss < best_loss:
                 not_improving_epochs = 0
