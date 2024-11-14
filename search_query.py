@@ -11,9 +11,11 @@ from clip import clip
 from PIL import Image
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
-from model_adapter import ClipAdapter
 from pathlib import Path
 from sklearn.metrics.pairwise import cosine_similarity
+
+from model_adapter import ClipAdapter
+
 
 dl.setenv('prod')
 logger = logging.getLogger('clip-smart-search')
@@ -35,7 +37,7 @@ imgs_list = list(img_paths)
 # image_features = project.feature_sets.get(feature_set_name=model_entity.name)
 
 #######################
-# make original model #
+# load original model #
 #######################
 # get original model features
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -44,16 +46,18 @@ model_orig, preprocess_orig = clip.load("ViT-B/32", device=DEVICE)
 # img_paths, _ = ClipAdapter.get_images_and_text(data_path=data_path, overwrite=False)
 
 ########################
-# make finetuned model #
+# load finetuned model #
 ########################
 # model_entity = dl.models.get(model_id=model_entity_id)
 # model_entity.artifacts.download(local_path='.', overwrite=True)
 model_path_sft = os.path.join(os.getcwd(), 'best.pt')
-# # embed images
-# app = ClipAdapter()
-# app.device = "cpu"
-# app.load_from_model(model_entity=model_entity, overwrite=False)
-# app.embed_dataset(dataset=dataset, upload_features=True)
+
+# embed images
+app = ClipAdapter()
+model_entity = dl.models.get(model_id="673334351881e27f94cbb1ca")
+app.device = "cpu"
+app.load_from_model(model_entity=model_entity, overwrite=False)
+app.embed_dataset(dataset=dataset, upload_features=True)
 
 # # get finetuned model features
 model_sft, preprocess_sft = clip.load("ViT-B/32", device=DEVICE, jit=False)

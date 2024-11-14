@@ -62,7 +62,7 @@ class ClipAdapter(dl.BaseModelAdapter):
             self.weights_filename).stem not in clip.available_models() \
             else self.weights_filename
 
-        if os.path.isfile(model_filepath) is True:
+        if os.path.isfile(model_filepath) is True and self.model_entity.status != 'pre-trained':
             self.model, self.preprocess = clip.load(name=model_filepath, device=self.device, jit=False)
             checkpoint = torch.load(model_filepath, map_location=self.device)
             # Use these 3 lines if you use default model setting (not training setting) of the clip.
@@ -263,7 +263,7 @@ class ClipAdapter(dl.BaseModelAdapter):
                                  f'Make sure there are items with annotations in the data subsets.')
 
     @staticmethod
-    def get_images_and_text(data_path, overwrite):
+    def get_images_and_text(data_path, overwrite=True):
         logger.debug(f"Data path: {data_path}")
         path = Path(data_path)
 
@@ -293,11 +293,9 @@ class ClipAdapter(dl.BaseModelAdapter):
             return new_path
 
         item_jsons = (path / "items").rglob("*.json")
+        args = [(item_file, overwrite) for item_file in item_jsons]
         with ThreadPoolExecutor() as executor:
-            image_paths = [result for result in executor.map(download_stream, item_jsons)]
-        # image_paths = []  # DEBUG
-        # for item_file in item_jsons:
-        #     image_paths.append(download_stream(item_file=item_file, overwrite=overwrite))
+            image_paths = executor.map(lambda d: download_stream(*d), args)
 
         item_captions = []
         json_files = (path / 'json').rglob("*.json")
