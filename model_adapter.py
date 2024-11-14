@@ -199,9 +199,6 @@ class ClipAdapter(dl.BaseModelAdapter):
                                                                        x=epoch,
                                                                        y=total_loss.item()),
                                                  dataset_id=self.model_entity.dataset_id)
-                self.model_entity.metrics['history'].append({'phase': 'train',
-                                                             'epoch': epoch,
-                                                             'loss': epoch_loss})
 
             vepoch_time = time.time()
             with tqdm(dataloaders['val'], unit="batch") as vepoch:
