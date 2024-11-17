@@ -1,7 +1,7 @@
 # batch_size must larger than 1
 
 import os
-import clip  # local import for embedding service
+import clip
 import json
 import logging
 import time
