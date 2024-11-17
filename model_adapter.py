@@ -122,6 +122,7 @@ class ClipAdapter(dl.BaseModelAdapter):
         not_improving_epochs = 0
         early_stop = self.configuration.get('early_stopping', True)
         early_stopping_epochs = self.configuration.get('early_stopping_epochs', 5)
+        end_training = False
 
         self.model.to(device=self.device)
         logger.info("Model set to train mode.")
@@ -296,7 +297,7 @@ class ClipAdapter(dl.BaseModelAdapter):
                 not_improving_epochs += 1
             if not_improving_epochs > early_stopping_epochs and early_stop is True:
                 logger.info("Early stop achieved at epoch ", epoch + 1)
-                break
+                end_training = True
         return
 
     def convert_from_dtlpy(self, data_path, **kwargs):
@@ -454,9 +455,8 @@ def _convert_item(item_src: dl.Item, dataset: dl.Dataset = None, prompt_key=None
 if __name__ == "__main__":
     # dl.setenv('rc')
     # project = dl.projects.get(project_name='smart image search')
-    #
     # dataset = project.datasets.get(dataset_name='TACO 100 prompt items')
-    # # dataset = project.datasets.get(dataset_name='TACO 3 prompt items')
+    # dataset = project.datasets.get(dataset_name='TACO 3 prompt items')
 
     dl.setenv('prod')
     project = dl.projects.get(project_name='Model mgmt demo')
@@ -482,9 +482,8 @@ if __name__ == "__main__":
 
     app = ClipAdapter(model_entity=new_model)
     app.train_model(model=new_model)
-    #
+
     # dl.setenv('prod')
-    # model_entity = dl.models.get(model_id="67330300d0718511c312b185")
+    # model_entity = dl.models.get(model_id="673334351881e27f94cbb1ca")
     # app = ClipAdapter()
     # app.load_from_model(model_entity=model_entity)
-    # app.train_model()

@@ -16,13 +16,12 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 from model_adapter import ClipAdapter
 
-
 dl.setenv('prod')
 logger = logging.getLogger('clip-smart-search')
 
 project = dl.projects.get('Model mgmt demo')
 dataset = project.datasets.get(dataset_name='taco 100')
-model_entity_id = '673334351881e27f94cbb1ca'  # trained tuesday midday 9 epochs
+model_entity_id = "6739b9f92ebe8b4bdd2a4a2c"
 
 QUERY_STRING = "cigarette butts on the ground"
 DEVICE = "cpu"
