@@ -63,7 +63,7 @@ class ClipAdapter(dl.BaseModelAdapter):
             else self.weights_filename
 
         if os.path.isfile(model_filepath) is True and self.model_entity.status != 'pre-trained':
-            self.model, self.preprocess = clip.load(name=model_filepath, device=self.device, jit=False)
+            self.model, self.preprocess = clip.load(name=self.arch_name, device=self.device)
             checkpoint = torch.load(model_filepath, map_location=self.device)
             # Use these 3 lines if you use default model setting (not training setting) of the clip.
             # checkpoint["input_resolution"] = self.model.input_resolution  # default is 224
@@ -451,39 +451,3 @@ def _convert_item(item_src: dl.Item, dataset: dl.Dataset = None, prompt_key=None
         new_item.update()
     return new_item
 
-
-if __name__ == "__main__":
-    # dl.setenv('rc')
-    # project = dl.projects.get(project_name='smart image search')
-    # dataset = project.datasets.get(dataset_name='TACO 100 prompt items')
-    # dataset = project.datasets.get(dataset_name='TACO 3 prompt items')
-
-    dl.setenv('prod')
-    project = dl.projects.get(project_name='Model mgmt demo')
-    dataset = project.datasets.get(dataset_name='taco 100 prompt items')
-    model = project.models.get(model_name='clip-smart-search')
-
-    model.metadata['system'] = {}
-    model.metadata['system']['subsets'] = {}
-
-    train_filters = dl.Filters(field='metadata.system.tags.train', values=True)
-    val_filters = dl.Filters(field='metadata.system.tags.validation', values=True)
-
-    model.metadata['system']['subsets']['train'] = train_filters.prepare()
-    model.metadata['system']['subsets']['validation'] = val_filters.prepare()
-    model.configuration = {"model_name": "ViT-B/32",
-                           "embeddings_size": 512,
-                           "num_epochs": 20,
-                           "batch_size": 32,
-                           "early_stopping": True,
-                           "early_stopping_epochs": 5}
-
-    new_model = model.clone(model_name=model.name + ' SFT', dataset=dataset)
-
-    app = ClipAdapter(model_entity=new_model)
-    app.train_model(model=new_model)
-
-    # dl.setenv('prod')
-    # model_entity = dl.models.get(model_id="673334351881e27f94cbb1ca")
-    # app = ClipAdapter()
-    # app.load_from_model(model_entity=model_entity)
