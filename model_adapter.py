@@ -1,7 +1,7 @@
 # batch_size must larger than 1
 
 import os
-import clip
+import clip  # local import for embedding service
 import json
 import logging
 import time
@@ -62,7 +62,7 @@ class ClipAdapter(dl.BaseModelAdapter):
             self.weights_filename).stem not in clip.available_models() \
             else self.weights_filename
 
-        if os.path.isfile(model_filepath) is True:  # and self.model_entity.status != 'pre-trained':
+        if os.path.isfile(model_filepath) is True and self.model_entity.status != 'pre-trained':
             self.model, self.preprocess = clip.load(name=model_filepath, device=self.device, jit=False)
             checkpoint = torch.load(model_filepath, map_location=self.device)
             # Use these 3 lines if you use default model setting (not training setting) of the clip.
@@ -156,75 +156,135 @@ class ClipAdapter(dl.BaseModelAdapter):
                                      weight_decay=weight_decay)
 
         for epoch in range(num_epochs):
-            running_loss = 0.0
-            total_imgs = 0
-
+            if end_training:
+                break
+            logger.info('Epoch {}/{} Start...'.format(epoch, num_epochs))
             tepoch_time = time.time()
-            with tqdm(dataloaders['train'], unit="batch") as tepoch:
-                tepoch.set_description(f"Epoch {epoch + 1}/{num_epochs}...")
-                for idx, batch in enumerate(tepoch):
-                    optimizer.zero_grad()
+            # Each epoch has a training and validation phase
+            for phase in ['train', 'val']:
+                if phase == 'train':
+                    self.model.train()  # Set model to training mode
+                else:
+                    self.model.eval()  # Set model to evaluate mode
 
-                    images, texts = batch
-                    images = images.to(self.device)
-                    texts = texts.to(self.device)
+                running_loss = 0.0
+                total_imgs = 0
 
-                    # forward pass
-                    logits_per_image, logits_per_text = self.model(images, texts)
+                with tqdm(dataloaders[phase], unit='batch') as tepoch:
+                    for idx, batch in enumerate(tepoch):
+                        optimizer.zero_grad()
 
-                    # calc loss + backprop
-                    ground_truth = torch.arange(len(images), dtype=torch.long, device=self.device)
-                    total_loss = (loss_img(logits_per_image, ground_truth) + loss_txt(logits_per_text,
-                                                                                      ground_truth)) / 2
-                    total_loss.backward()
+                        images, texts = batch
+                        images = images.to(self.device)
+                        texts = texts.to(self.device)
 
-                    if self.device == "cpu":
-                        optimizer.step()
-                    else:
-                        convert_models_to_fp32(self.model)
-                        optimizer.step()
-                        clip.model.convert_weights(self.model)
-                    tepoch.set_postfix(Training_loss=f"{total_loss.item():.4f}")
+                        # forward pass
+                        logits_per_image, logits_per_text = self.model(images, texts)
 
-                    # statistics
-                    total_imgs += images.size(0)
-                    running_loss += (total_loss.item() * images.size(0))
-                    epoch_loss = running_loss / total_imgs
+                        # calc loss + backprop
+                        ground_truth = torch.arange(len(images), dtype=torch.long, device=self.device)
+                        total_loss = (loss_img(logits_per_image, ground_truth) + loss_txt(logits_per_text,
+                                                                                          ground_truth)) / 2
+                        if phase == 'train':
+                            total_loss.backward()
 
-                logger.info(
-                    f'Epoch {epoch}/{num_epochs} - Train - Loss: {total_loss:.4f}, Duration {(time.time() - tepoch_time):.2f}')
+                            if self.device == "cpu":
+                                optimizer.step()
+                            else:
+                                convert_models_to_fp32(self.model)
+                                optimizer.step()
+                                clip.model.convert_weights(self.model)
+                            tepoch.set_postfix(Training_loss=f"{total_loss.item():.4f}")
 
-                self.model_entity.metrics.create(samples=dl.PlotSample(figure='loss',
-                                                                       legend='train',
-                                                                       x=epoch,
-                                                                       y=total_loss.item()),
-                                                 dataset_id=self.model_entity.dataset_id)
+                        # statistics
+                        total_imgs += images.size(0)
+                        running_loss += (total_loss.item() * images.size(0))
+                        epoch_loss = running_loss / total_imgs
 
-            vepoch_time = time.time()
-            with tqdm(dataloaders['val'], unit="batch") as vepoch:
-                vepoch.set_description("  Validation...")
-                for batch in vepoch:
-                    optimizer.zero_grad()
-                    images, texts = batch
-                    images = images.to(self.device)
-                    texts = texts.to(self.device)
+                        if phase == "val":
+                            val_loss = epoch_loss
 
-                    # forward pass
-                    logits_per_image, logits_per_text = self.model(images, texts)
-                    # calc loss
-                    ground_truth = torch.arange(len(images), dtype=torch.long, device=self.device)
-                    val_loss = (loss_img(logits_per_image, ground_truth) + loss_txt(logits_per_text, ground_truth)) / 2
-                    vepoch.set_postfix(Validation_loss=f"{val_loss.item():.4f}")
+                    logger.info(
+                        f'Epoch {epoch}/{num_epochs} - {phase} loss: {total_loss.item():.4f}, Duration {(time.time() - tepoch_time):.2f}')
 
-                logger.info(
-                    f'Epoch {epoch}/{num_epochs} - Val - Loss: {total_loss:.4f}, Duration {(time.time() - vepoch_time):.2f}')
+                    self.model_entity.metrics.create(samples=dl.PlotSample(figure='loss',
+                                                                           legend=phase,
+                                                                           x=epoch,
+                                                                           y=epoch_loss),
+                                                     dataset_id=self.model_entity.dataset_id)
 
-                self.model_entity.metrics.create(samples=dl.PlotSample(figure='loss',
-                                                                       legend='val',
-                                                                       x=epoch,
-                                                                       y=total_loss.item()),
-                                                 dataset_id=self.model_entity.dataset_id)
-
+            # running_loss = 0.0
+            # total_imgs = 0
+            # with tqdm(dataloaders['train'], unit="batch") as tepoch:
+            #     tepoch.set_description(f"Epoch {epoch + 1}/{num_epochs}...")
+            #     for idx, batch in enumerate(tepoch):
+            #         optimizer.zero_grad()
+            #
+            #         images, texts = batch
+            #         images = images.to(self.device)
+            #         texts = texts.to(self.device)
+            #
+            #         # forward pass
+            #         logits_per_image, logits_per_text = self.model(images, texts)
+            #
+            #         # calc loss + backprop
+            #         ground_truth = torch.arange(len(images), dtype=torch.long, device=self.device)
+            #         total_loss = (loss_img(logits_per_image, ground_truth) + loss_txt(logits_per_text,
+            #                                                                           ground_truth)) / 2
+            #         total_loss.backward()
+            #
+            #         if self.device == "cpu":
+            #             optimizer.step()
+            #         else:
+            #             convert_models_to_fp32(self.model)
+            #             optimizer.step()
+            #             clip.model.convert_weights(self.model)
+            #         tepoch.set_postfix(Training_loss=f"{total_loss.item():.4f}")
+            #
+            #         # statistics
+            #         total_imgs += images.size(0)
+            #         running_loss += (total_loss.item() * images.size(0))
+            #         epoch_loss = running_loss / total_imgs
+            #
+            #     logger.info(
+            #         f'Epoch {epoch}/{num_epochs} - Train - Loss: {total_loss.item():.4f}, Duration {(time.time() - tepoch_time):.2f}')
+            #
+            #     self.model_entity.metrics.create(samples=dl.PlotSample(figure='loss',
+            #                                                            legend='train',
+            #                                                            x=epoch,
+            #                                                            y=total_loss.item()),
+            #                                      dataset_id=self.model_entity.dataset_id)
+            #
+            # vepoch_time = time.time()
+            # with tqdm(dataloaders['val'], unit="batch") as vepoch:
+            #     vepoch.set_description("  Validation...")
+            #     for batch in vepoch:
+            #         optimizer.zero_grad()
+            #         images, texts = batch
+            #         images = images.to(self.device)
+            #         texts = texts.to(self.device)
+            #
+            #         # forward pass
+            #         logits_per_image, logits_per_text = self.model(images, texts)
+            #         # calc loss
+            #         ground_truth = torch.arange(len(images), dtype=torch.long, device=self.device)
+            #         val_loss = (loss_img(logits_per_image, ground_truth) + loss_txt(logits_per_text, ground_truth)) / 2
+            #         vepoch.set_postfix(Validation_loss=f"{val_loss.item():.4f}")
+            #
+            #         # statistics
+            #         total_imgs += images.size(0)
+            #         running_loss += (val_loss.item() * images.size(0))
+            #         epoch_loss = running_loss / total_imgs
+            #
+            #
+            #     logger.info(
+            #         f'Epoch {epoch}/{num_epochs} - Val - Loss: {val_loss.item():.4f}, Duration {(time.time() - vepoch_time):.2f}')
+            #
+            #     self.model_entity.metrics.create(samples=dl.PlotSample(figure='loss',
+            #                                                            legend='val',
+            #                                                            x=epoch,
+            #                                                            y=total_loss.item()),
+            #                                      dataset_id=self.model_entity.dataset_id)
             if val_loss < best_loss:
                 not_improving_epochs = 0
                 best_loss = val_loss
