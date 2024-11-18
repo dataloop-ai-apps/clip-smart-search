@@ -56,14 +56,13 @@ class ClipAdapter(dl.BaseModelAdapter):
         if self.arch_name not in clip.available_models():
             raise ValueError(f"Model {self.arch_name} is not an available architecture for CLIP.")
         self.model_name = "CLIP " + self.arch_name
-
         self.weights_filename = self.configuration.get('weights_filename', 'best.pt')
         model_filepath = os.path.join(local_path, self.weights_filename) if Path(
             self.weights_filename).stem not in clip.available_models() \
             else self.weights_filename
 
+        self.model, self.preprocess = clip.load(name=self.arch_name, device=self.device)
         if os.path.isfile(model_filepath) is True and self.model_entity.status != 'pre-trained':
-            self.model, self.preprocess = clip.load(name=self.arch_name, device=self.device)
             checkpoint = torch.load(model_filepath, map_location=self.device)
             # Use these 3 lines if you use default model setting (not training setting) of the clip.
             # checkpoint["input_resolution"] = self.model.input_resolution  # default is 224
@@ -71,7 +70,6 @@ class ClipAdapter(dl.BaseModelAdapter):
             # checkpoint["vocab_size"] = self.model.vocab_size
             self.model.load_state_dict(checkpoint['model_state_dict'])
         else:
-            self.model, self.preprocess = clip.load(name=self.arch_name, device=self.device)
             logger.info("No previously saved model found, loading from default pre-trained weights.")
         self.model.eval()
         logger.info("Loaded model {} successfully".format(self.model_name))
@@ -214,78 +212,6 @@ class ClipAdapter(dl.BaseModelAdapter):
                                                                            y=epoch_loss),
                                                      dataset_id=self.model_entity.dataset_id)
 
-            # running_loss = 0.0
-            # total_imgs = 0
-            # with tqdm(dataloaders['train'], unit="batch") as tepoch:
-            #     tepoch.set_description(f"Epoch {epoch + 1}/{num_epochs}...")
-            #     for idx, batch in enumerate(tepoch):
-            #         optimizer.zero_grad()
-            #
-            #         images, texts = batch
-            #         images = images.to(self.device)
-            #         texts = texts.to(self.device)
-            #
-            #         # forward pass
-            #         logits_per_image, logits_per_text = self.model(images, texts)
-            #
-            #         # calc loss + backprop
-            #         ground_truth = torch.arange(len(images), dtype=torch.long, device=self.device)
-            #         total_loss = (loss_img(logits_per_image, ground_truth) + loss_txt(logits_per_text,
-            #                                                                           ground_truth)) / 2
-            #         total_loss.backward()
-            #
-            #         if self.device == "cpu":
-            #             optimizer.step()
-            #         else:
-            #             convert_models_to_fp32(self.model)
-            #             optimizer.step()
-            #             clip.model.convert_weights(self.model)
-            #         tepoch.set_postfix(Training_loss=f"{total_loss.item():.4f}")
-            #
-            #         # statistics
-            #         total_imgs += images.size(0)
-            #         running_loss += (total_loss.item() * images.size(0))
-            #         epoch_loss = running_loss / total_imgs
-            #
-            #     logger.info(
-            #         f'Epoch {epoch}/{num_epochs} - Train - Loss: {total_loss.item():.4f}, Duration {(time.time() - tepoch_time):.2f}')
-            #
-            #     self.model_entity.metrics.create(samples=dl.PlotSample(figure='loss',
-            #                                                            legend='train',
-            #                                                            x=epoch,
-            #                                                            y=total_loss.item()),
-            #                                      dataset_id=self.model_entity.dataset_id)
-            #
-            # vepoch_time = time.time()
-            # with tqdm(dataloaders['val'], unit="batch") as vepoch:
-            #     vepoch.set_description("  Validation...")
-            #     for batch in vepoch:
-            #         optimizer.zero_grad()
-            #         images, texts = batch
-            #         images = images.to(self.device)
-            #         texts = texts.to(self.device)
-            #
-            #         # forward pass
-            #         logits_per_image, logits_per_text = self.model(images, texts)
-            #         # calc loss
-            #         ground_truth = torch.arange(len(images), dtype=torch.long, device=self.device)
-            #         val_loss = (loss_img(logits_per_image, ground_truth) + loss_txt(logits_per_text, ground_truth)) / 2
-            #         vepoch.set_postfix(Validation_loss=f"{val_loss.item():.4f}")
-            #
-            #         # statistics
-            #         total_imgs += images.size(0)
-            #         running_loss += (val_loss.item() * images.size(0))
-            #         epoch_loss = running_loss / total_imgs
-            #
-            #
-            #     logger.info(
-            #         f'Epoch {epoch}/{num_epochs} - Val - Loss: {val_loss.item():.4f}, Duration {(time.time() - vepoch_time):.2f}')
-            #
-            #     self.model_entity.metrics.create(samples=dl.PlotSample(figure='loss',
-            #                                                            legend='val',
-            #                                                            x=epoch,
-            #                                                            y=total_loss.item()),
-            #                                      dataset_id=self.model_entity.dataset_id)
             if val_loss < best_loss:
                 not_improving_epochs = 0
                 best_loss = val_loss
@@ -397,7 +323,8 @@ class ClipAdapter(dl.BaseModelAdapter):
         """
         Converts a dataset of images with descriptions to a dataset of prompt items for CLIP
         :param dataset_src: dl.Dataset
-        :param existing_subsets: optional boolean to keep existing subsets from original items
+        :param filters: dl.Filters for retrieving the relevant items from dataset (optional)
+        :param existing_subsets: optional boolean to keep existing subsets from original items (default: True)
         :return: dataset with prompt items
         """
         project = dataset_src.project
@@ -450,4 +377,3 @@ def _convert_item(item_src: dl.Item, dataset: dl.Dataset = None, prompt_key=None
             new_item.metadata['system']['subsets'] = item_src.metadata['system']['subsets']
         new_item.update()
     return new_item
-
