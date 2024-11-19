@@ -52,7 +52,7 @@ class ClipAdapter(dl.BaseModelAdapter):
 
     def load(self, local_path, **kwargs):
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        self.arch_name = self.model_entity.configuration.get("model_name", "ViT-B/32")
+        self.arch_name = self.configuration.get("model_name", "ViT-B/32")
         if self.arch_name not in clip.available_models():
             raise ValueError(f"Model {self.arch_name} is not an available architecture for CLIP.")
         self.model_name = "CLIP " + self.arch_name
