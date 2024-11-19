@@ -1,7 +1,7 @@
 {
   "name": "clip-image-search",
   "displayName": "Semantic (CLIP)",
-  "description": "CLIP Image search using NLP",
+  "description": "CLIP image search using NLP. Use requires embedding items with CLIP model before searching.",
   "version": "0.2.1",
   "scope": "public",
   "attributes": {
