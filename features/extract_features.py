@@ -95,9 +95,16 @@ class ClipExtractor(dl.BaseServiceRunner):
         return item
 
     def extract_dataset(self, dataset: dl.Dataset, query=None, progress=None):
-        filters = dl.Filters()
-        filters.add(field='metadata.system.mimetype', values="image/*", method=dl.FILTERS_METHOD_OR)
-        filters.add(field='metadata.system.mimetype', values="text/*", method=dl.FILTERS_METHOD_OR)
+        if query is None:
+            filters = dl.Filters()
+            filters.add(field='metadata.system.mimetype', values="image/*", method=dl.FILTERS_METHOD_OR)
+            filters.add(field='metadata.system.mimetype', values="text/*", method=dl.FILTERS_METHOD_OR)
+        else:
+            filters = dl.Filters(custom_filter=query)
+            if filters.context is None:
+                filters.context = {"datasets": [dataset.id]}
+            else:
+                filters.context["datasets"] = [dataset.id]
 
         items_path = os.path.join(os.getcwd(), dataset.id)
         item_filepaths = dataset.items.download(filters=filters,
