@@ -1,8 +1,8 @@
 {
   "name": "clip-image-search",
-  "displayName": "Clip Image Search",
+  "displayName": "Semantic (CLIP)",
   "description": "CLIP Image search using NLP",
-  "version": "0.1.20",
+  "version": "0.1.25",
   "scope": "public",
   "attributes": {
     "Category": "Application",
@@ -12,7 +12,7 @@
   "codebase": {
     "type": "git",
     "gitUrl": "https://github.com/dataloop-ai-apps/clip-smart-search",
-    "gitTag": "0.1.20"
+    "gitTag": "0.1.25"
   },
   "components": {
     "panels": [
@@ -31,7 +31,7 @@
                       "props": {
                         "title": false,
                         "type": "string",
-                        "placeholder": "Natural language based search, e.g. “image with high brightness” or “images with red cars”"
+                        "placeholder": "Natural language based search, e.g. image with high brightness or images with red cars"
                       },
                       "widget": "dl-input"
                     }
@@ -50,7 +50,7 @@
     ],
     "toolbars": [
       {
-        "displayName": "NLP (CLIP)",
+        "displayName": "Semantic (CLIP)",
         "icon": "icon-dl-models-management",
         "location": "datasetBrowserSearchOption",
         "invoke": {
@@ -121,9 +121,9 @@
         "moduleName": "extract_features",
         "packageRevision": "latest",
         "runtime": {
-          "podType": "highmem-l",
+          "podType": "regular-m",
           "concurrency": 10,
-          "runnerImage": "gcr.io/viewo-g/piper/agent/runner/cpu/clip-search:0.1.0",
+          "runnerImage": "gcr.io/viewo-g/piper/agent/runner/apps/clip-smart-search:0.1.3",
           "autoscaler": {
             "type": "rabbitmq",
             "minReplicas": 0,
