@@ -6,6 +6,7 @@ dpks:
 # ordered list of datasets to create from local assets
 datasets:
     - name: clip_dataset
+      type: local
 
 # ordered list of services to get from apps
 services:
