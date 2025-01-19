@@ -64,8 +64,7 @@ class ClipExtractor(dl.BaseServiceRunner):
             image = self.preprocess(image).unsqueeze(0).to(self.device)
             features = self.model.encode_image(image)
         elif text is not None:
-            print(len(text))
-            tokens = clip.tokenize([text], context_length=77, truncate=True).to(self.device)
+            tokens = clip.tokenize([text], context_length=77).to(self.device)
             features = self.model.encode_text(tokens)
         else:
             raise ValueError('Either image or text is required')
@@ -135,16 +134,10 @@ class ClipExtractor(dl.BaseServiceRunner):
         shutil.rmtree(items_path)
         return dataset
 
-    def extract_from_video_description(self, dataset: dl.Dataset):
-        filters = dl.Filters()
-        filters.add(field='metadata.system.mimetype', values="video/*")
-        items = dataset.items.list(filters=filters).all()
-        for item in items:
-            self.extract_from_data(item=item, text=item.description)
-    
 
 if __name__ == "__main__":
-    project = dl.projects.get(project_id='f2423357-fc3b-4a3d-b0b9-e09ebe2b9ddf')
+    dl.setenv('')
+    project = dl.projects.get(project_id='')
     app = ClipExtractor(project=project)
-    dataset = project.datasets.get(dataset_id='6788d463253d21b65221b482')
-    app.extract_from_video_description(dataset=dataset)
+    dataset = project.datasets.get(dataset_id='')
+    app.extract_dataset(dataset=dataset)
