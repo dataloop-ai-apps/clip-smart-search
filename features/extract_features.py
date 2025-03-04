@@ -53,7 +53,8 @@ class ClipExtractor(dl.BaseServiceRunner):
                     "system": {
                         "clip_feature_set_id": feature_set.id
                     }
-                }
+                },
+                overwrite=True
             )
         self.feature_set = feature_set
         # self.feature_vector_entities = [fv.entity_id for fv in self.feature_set.features.list().all()]
