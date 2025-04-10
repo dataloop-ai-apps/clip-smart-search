@@ -50,6 +50,7 @@
     ],
     "toolbars": [
       {
+        "name": "clip-smart-search",
         "displayName": "Semantic (CLIP)",
         "icon": "icon-dl-models-management",
         "location": "datasetBrowserSearchOption",
@@ -163,9 +164,7 @@
           },
           "executionMode": "Always",
           "resource": "Item",
-          "actions": [
-            "Created"
-          ],
+          "actions": ["Created"],
           "input": {},
           "operation": {
             "type": "function",
