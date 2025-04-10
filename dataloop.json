@@ -60,6 +60,7 @@
         }
       },
       {
+        "name": "clip-extract-features",
         "displayName": "Clip Extract Features",
         "invoke": {
           "type": "function",
