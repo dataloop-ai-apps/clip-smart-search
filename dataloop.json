@@ -2,7 +2,7 @@
   "name": "clip-image-search",
   "displayName": "Semantic (CLIP)",
   "description": "CLIP Image search using NLP",
-  "version": "0.1.28",
+  "version": "0.1.29",
   "scope": "public",
   "attributes": {
     "Category": "Application",
@@ -12,7 +12,7 @@
   "codebase": {
     "type": "git",
     "gitUrl": "https://github.com/dataloop-ai-apps/clip-smart-search",
-    "gitTag": "0.1.28"
+    "gitTag": "0.1.29"
   },
   "components": {
     "panels": [
