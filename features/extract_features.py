@@ -64,7 +64,7 @@ class ClipExtractor(dl.BaseServiceRunner):
             image = self.preprocess(image).unsqueeze(0).to(self.device)
             features = self.model.encode_image(image)
         elif text is not None:
-            tokens = clip.tokenize([text], context_length=77).to(self.device)
+            tokens = clip.tokenize([text], context_length=77, truncate=True).to(self.device)
             features = self.model.encode_text(tokens)
         else:
             raise ValueError('Either image or text is required')

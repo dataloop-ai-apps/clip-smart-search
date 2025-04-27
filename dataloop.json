@@ -2,7 +2,7 @@
   "name": "clip-image-search",
   "displayName": "Semantic (CLIP)",
   "description": "CLIP Image search using NLP",
-  "version": "0.1.26",
+  "version": "0.1.29",
   "scope": "public",
   "attributes": {
     "Category": "Application",
@@ -12,7 +12,7 @@
   "codebase": {
     "type": "git",
     "gitUrl": "https://github.com/dataloop-ai-apps/clip-smart-search",
-    "gitTag": "0.1.26"
+    "gitTag": "0.1.29"
   },
   "components": {
     "panels": [
@@ -50,6 +50,7 @@
     ],
     "toolbars": [
       {
+        "name": "clip-smart-search",
         "displayName": "Semantic (CLIP)",
         "icon": "icon-dl-models-management",
         "location": "datasetBrowserSearchOption",
@@ -59,6 +60,7 @@
         }
       },
       {
+        "name": "clip-extract-features",
         "displayName": "Clip Extract Features",
         "invoke": {
           "type": "function",
@@ -163,9 +165,7 @@
           },
           "executionMode": "Always",
           "resource": "Item",
-          "actions": [
-            "Created"
-          ],
+          "actions": ["Created"],
           "input": {},
           "operation": {
             "type": "function",
