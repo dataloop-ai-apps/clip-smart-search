@@ -12,7 +12,7 @@ DATASET_NAME = "CLIP-Semantic-Tests"
 class MyTestCase(unittest.TestCase):
     project: dl.Project = None
     dataset: dl.Dataset = None
-    assets_folder: str = os.path.join('testsX', 'assets', 'unittest')
+    assets_folder: str = os.path.join('tests', 'assets', 'unittest')
     dataset_folder: str = os.path.join(assets_folder, 'datasets', 'example_data')
     prepare_item_function = dict()
 
