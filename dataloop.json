@@ -62,7 +62,7 @@
         "displayName": "Clip Extract Features",
         "invoke": {
           "type": "function",
-          "namespace": "clip-extraction.extract_features.extract_dataset"
+          "namespace": "clip-extraction-long.extract_features.extract_dataset"
         },
         "location": "datasetBrowserApps",
         "icon": "icon-dl-edit"
@@ -131,7 +131,24 @@
             "queueLength": 100
           }
         },
-        "executionTimeout": 360000
+        "executionTimeout": 10800
+      },
+      {
+        "name": "clip-extraction-long",
+        "moduleName": "extract_features",
+        "packageRevision": "latest",
+        "runtime": {
+          "podType": "regular-m",
+          "concurrency": 1,
+          "runnerImage": "gcr.io/viewo-g/piper/agent/runner/cpu/clip-search:0.1.0",
+          "autoscaler": {
+            "type": "rabbitmq",
+            "minReplicas": 0,
+            "maxReplicas": 2,
+            "queueLength": 100
+          }
+        },
+        "executionTimeout": 36000
       }
     ],
     "triggers": [
