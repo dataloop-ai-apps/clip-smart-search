@@ -133,7 +133,7 @@
             "queueLength": 100
           }
         },
-        "executionTimeout": 360000
+        "executionTimeout": 172800
       }
     ],
     "triggers": [
