@@ -1,0 +1,25 @@
+# ordered list of dpks to publish and install
+dpks:
+    - name: clip-image-search
+      install_app: True
+
+# ordered list of datasets to create from local assets
+datasets:
+    - name: clip_dataset
+      type: local
+
+# ordered list of services to get from apps
+services:
+    - name: clip-extraction
+      source_app: clip-image-search
+
+# list of pipeline variables to update with reference
+variables:
+    - name: dataset
+      resource_type: datasets
+      resource_value:
+          resource_name: clip_dataset
+    - name: service
+      resource_type: services
+      resource_value:
+          resource_name: clip-extraction
