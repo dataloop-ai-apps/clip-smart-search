@@ -131,7 +131,7 @@ async function run(textInput, itemsQuery) {
   let textInputs = tokenizer(texts, { padding: true, truncation: true });
   let { text_embeds } = await textModel(textInputs);
   let vector = text_embeds.data
-  console.log(vector);
+  console.log(`vector: ${vector}`);
 
   let query = {
     filter: itemsQuery,
@@ -156,6 +156,6 @@ async function run(textInput, itemsQuery) {
       }
     }
   }
-  console.log(query)
+  console.log(`query: ${query}`)
   return query
 }
