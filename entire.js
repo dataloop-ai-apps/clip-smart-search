@@ -3,7 +3,8 @@ async function run(textInput, itemsQuery) {
   let textModel
   let transformers
   let featureSetId
-  const dataset = await dl.datasets.get()
+  const dataset = await dl.datasets.get() 
+  console.log(`input itemsQuery: ${itemsQuery}`)
   try {
     textInput = textInput['Text Box']
   }
@@ -133,7 +134,7 @@ async function run(textInput, itemsQuery) {
   console.log(vector);
 
   let query = {
-    filter: itemsQuery.filter,
+    filter: itemsQuery,
     page: 0,
     pageSize: 1000,
     resource: 'items',
