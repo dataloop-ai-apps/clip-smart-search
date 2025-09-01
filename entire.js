@@ -6,7 +6,7 @@ async function run(textInput, itemsQuery) {
   const defaultFilter = { $and: [{ hidden: false }, { type: 'file' }] }
   const filter = itemsQuery && itemsQuery.filter ? itemsQuery.filter : defaultFilter
   const defaultQuery = { filter: filter , resource: 'items'}
-  console.log(`input itemsQuery: ${itemsQuery}`)
+  console.log(`input itemsQuery: ${itemsQuery ? JSON.stringify(itemsQuery, null, 2) : 'null'}`)
   const dataset = await dl.datasets.get()
   try {
     textInput = textInput['Text Box']
@@ -134,7 +134,7 @@ async function run(textInput, itemsQuery) {
   let textInputs = tokenizer(texts, { padding: true, truncation: true });
   let { text_embeds } = await textModel(textInputs);
   let vector = text_embeds.data
-  console.log(`vector: ${vector}`);
+  console.log(`vector: ${vector}`)
 
   let query = {
     filter: filter,
@@ -159,6 +159,6 @@ async function run(textInput, itemsQuery) {
       }
     }
   }
-  console.log(`query: ${query}`)
+  console.log('query:', query)
   return query
 }
