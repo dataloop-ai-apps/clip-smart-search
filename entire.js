@@ -3,7 +3,6 @@ async function run(textInput, itemsQuery) {
   let textModel
   let transformers
   let featureSetId
-  const default_query = { filter: { $and: [{ hidden: false }, { type: 'file' }] } }
   const dataset = await dl.datasets.get()
   try {
     textInput = textInput['Text Box']
@@ -16,7 +15,7 @@ async function run(textInput, itemsQuery) {
         type: "error"
       }
     })
-    return default_query
+    return itemsQuery
   }
 
   try {
@@ -37,7 +36,7 @@ async function run(textInput, itemsQuery) {
       serviceName: 'clip-extraction',
       input: { dataset: { dataset_id: dataset.id }, query: null },
     })
-    return default_query
+    return itemsQuery
   }
   const query_feature = {
     "filter": {
@@ -134,7 +133,7 @@ async function run(textInput, itemsQuery) {
   console.log(vector);
 
   let query = {
-    filter: { $and: [{ hidden: false }, { type: 'file' }, {datasetId: dataset.id}] },
+    filter: itemsQuery.filter,
     page: 0,
     pageSize: 1000,
     resource: 'items',
