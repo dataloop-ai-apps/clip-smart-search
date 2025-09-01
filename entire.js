@@ -159,6 +159,6 @@ async function run(textInput, itemsQuery) {
       }
     }
   }
-  console.log('query:', query)
+  console.log(`query: ${JSON.stringify(query, null, 2)}`)
   return query
 }
