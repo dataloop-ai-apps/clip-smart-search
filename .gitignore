@@ -162,3 +162,7 @@ output/
 *.npy
 dataloop_scripts/
 data
+scripts/
+*.pt
+*.onnx
+.env
