@@ -3,7 +3,10 @@ async function run(textInput, itemsQuery) {
   let textModel
   let transformers
   let featureSetId
-  const default_query = { filter: { $and: [{ hidden: false }, { type: 'file' }] } }
+  const defaultFilter = { $and: [{ hidden: false }, { type: 'file' }] }
+  const filter = itemsQuery && itemsQuery.filter ? itemsQuery.filter : defaultFilter
+  const defaultQuery = { filter: filter , resource: 'items'}
+  console.log(`input itemsQuery: ${itemsQuery ? JSON.stringify(itemsQuery, null, 2) : 'null'}`)
   const dataset = await dl.datasets.get()
   try {
     textInput = textInput['Text Box']
@@ -16,7 +19,7 @@ async function run(textInput, itemsQuery) {
         type: "error"
       }
     })
-    return default_query
+    return defaultQuery
   }
 
   try {
@@ -37,7 +40,7 @@ async function run(textInput, itemsQuery) {
       serviceName: 'clip-extraction',
       input: { dataset: { dataset_id: dataset.id }, query: null },
     })
-    return default_query
+    return defaultQuery
   }
   const query_feature = {
     "filter": {
@@ -122,7 +125,7 @@ async function run(textInput, itemsQuery) {
     }
     catch (e) {
       console.log(e)
-      return default_query
+      return defaultQuery
     }
 
   }
@@ -131,10 +134,10 @@ async function run(textInput, itemsQuery) {
   let textInputs = tokenizer(texts, { padding: true, truncation: true });
   let { text_embeds } = await textModel(textInputs);
   let vector = text_embeds.data
-  console.log(vector);
+  console.log(`vector: ${vector}`)
 
   let query = {
-    filter: { $and: [{ hidden: false }, { type: 'file' }, {datasetId: dataset.id}] },
+    filter: filter,
     page: 0,
     pageSize: 1000,
     resource: 'items',
@@ -156,6 +159,6 @@ async function run(textInput, itemsQuery) {
       }
     }
   }
-  console.log(query)
+  console.log(`query: ${JSON.stringify(query, null, 2)}`)
   return query
 }
