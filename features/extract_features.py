@@ -96,7 +96,7 @@ class ClipExtractor(dl.BaseServiceRunner):
         return item
 
     def extract_dataset(self, dataset: dl.Dataset, query=None, progress=None):
-        filters = dl.Filters()
+        filters = dl.Filters(custom_filter=query)
         filters.add(field='metadata.system.mimetype', values="image/*", method=dl.FILTERS_METHOD_OR)
         filters.add(field='metadata.system.mimetype', values="text/*", method=dl.FILTERS_METHOD_OR)
 

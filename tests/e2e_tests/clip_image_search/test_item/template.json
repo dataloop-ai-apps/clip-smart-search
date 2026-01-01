@@ -1,0 +1,85 @@
+{
+  "projectId": null,
+  "orgId": null,
+  "connections": [
+  ],
+  "startNodes": [
+    {
+      "nodeId": "65e4b8a9-e189-418b-81b5-1b05d6459903",
+      "type": "root",
+      "id": "bf40c5d8-4e41-4a87-946f-6d1c647c860d"
+    }
+  ],
+  "variables": [
+    {
+      "name": "dataset",
+      "type": "Dataset",
+      "description": null
+    },
+    {
+      "name": "service",
+      "type": "Service",
+      "description": null
+    }
+  ],
+  "description": "",
+  "name": "CLIP-Item",
+  "templateKind": "org",
+  "nodes": [
+    {
+      "id": "65e4b8a9-e189-418b-81b5-1b05d6459903",
+      "inputs": [
+        {
+          "portId": "a30bde28-d148-45de-a1f2-bdf38d0b9662",
+          "nodeId": "a30bde28-d148-45de-a1f2-bdf38d0b9662",
+          "type": "Dataset",
+          "name": "dataset",
+          "displayName": "dataset",
+          "variableName": "dataset",
+          "io": "input"
+        },
+        {
+          "portId": "399b6426-52c0-45c8-b37a-5eb27f1f1082",
+          "nodeId": "399b6426-52c0-45c8-b37a-5eb27f1f1082",
+          "type": "Service",
+          "name": "service",
+          "displayName": "service",
+          "variableName": "service",
+          "io": "input"
+        }
+      ],
+      "outputs": [
+      ],
+      "name": "clip-test",
+      "type": "code",
+      "namespace": {
+        "functionName": "run",
+        "projectName": null,
+        "serviceName": "",
+        "moduleName": null,
+        "packageName": ""
+      },
+      "projectId": null,
+      "config": {
+        "package": {
+          "code": "import dtlpy as dl\n\n\nclass ServiceRunner:\n    @staticmethod\n    def run(dataset: dl.Dataset, service: dl.Service):\n        # Define filters\n        filters = dl.Filters()\n        filters.add(field=\"dir\", values=\"/\")\n        item = list(dataset.items.list(filters=filters).all())[0]\n\n        # Execute service\n        execution = service.execute(\n            execution_input=[\n                dl.FunctionIO(\n                    name=\"item\",\n                    type=dl.PackageInputType.ITEM,\n                    value=item.id\n                )\n            ],\n            project_id=dataset.project.id,\n            function_name=\"extract_item\"\n        )\n\n        # Wait for service execution to finish\n        execution = execution.wait()\n        if execution.latest_status[\"status\"] != dl.ExecutionStatus.SUCCESS:\n            raise ValueError(\n                f\"Service execution '{execution.id}' failed with status: '{service.status}'\"\n            )\n\n        # Validate execution output\n        execution_output = execution.output\n        assert isinstance(execution_output, dict)\n        item_id = execution_output.get(\"item_id\", None)\n        assert item_id == item.id\n\n        # Get the newly created feature\n        feature_set_name = 'clip-feature-set'\n        feature_set = dataset.project.feature_sets.get(feature_set_name=feature_set_name)\n        filters = dl.Filters(resource=dl.FiltersResource.FEATURE)\n        filters.add(field=\"entityId\", values=item_id)\n        features = feature_set.features.list(filters=filters)\n        features_count = features.items_count\n\n        # Validations\n        assert features_count == 1\n        feature = list(features.all())[0]\n        assert feature.entity_id == item_id\n        assert isinstance(feature.value, list)\n        assert len(feature.value) == 512\n        print(\"Service execution completed successfully!\")\n",
+          "name": "run",
+          "type": "code",
+          "codebase": {
+            "type": "item"
+          }
+        }
+      },
+      "metadata": {
+        "position": {
+          "x": 10000.0,
+          "y": 10000.0,
+          "z": 0
+        },
+        "repeatable": true
+      }
+    }
+  ],
+  "preview": "6693c9f42e4faf2d0b73471a",
+  "_id": "6693ca052e4faf987373474c"
+}
