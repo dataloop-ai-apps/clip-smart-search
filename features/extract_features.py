@@ -1,9 +1,9 @@
 import json
 import logging
 import time
+from io import BytesIO
 import dtlpy as dl
 
-from io import BytesIO
 
 logger = logging.getLogger('[CLIP-SEARCH]')
 
@@ -21,112 +21,112 @@ class ClipExtractor(dl.BaseServiceRunner):
         self.feature_set = None
         
         # Install/get the CLIP model adapter and set up the model
-        self._setup_model_adapter()
+        self._validate_model()
         
         # Set up the feature set and store its ID in binaries
         self._setup_feature_set()
 
-    def _setup_model_adapter(self):
-        """Install the CLIP model adapter DPK and deploy the model."""
-        logger.info(f'Getting DPK: {DPK_NAME}')
-        clip_model_dpk = dl.dpks.get(dpk_name=DPK_NAME)
-        
-        try:
-            model_app = self.project.apps.install(
-                app_name=clip_model_dpk.display_name,
-                dpk=clip_model_dpk,
-                custom_installation=clip_model_dpk.to_json()
-            )
-            logger.info(f"Installed {clip_model_dpk.display_name} app: {model_app.name}, ID: {model_app.id}")
-        except dl.exceptions.BadRequest:
-            logger.info(f"{clip_model_dpk.display_name} app already installed, getting existing app")
-            model_app = self.project.apps.get(app_name=clip_model_dpk.display_name)
-            logger.info(f"Retrieved existing app: {model_app.name}, ID: {model_app.id}")
-        
-        # Try to get the custom model by name
+    def _validate_model(self):
+        """Validate the model exists and is deployed."""
         try:
             self.model = self.project.models.get(model_name=MODEL_NAME)
             logger.info(f'Custom model found: {self.model.name}, id: {self.model.id}')
         except dl.exceptions.NotFound:
-            # Custom model doesn't exist, clone from base model
             logger.info(f'Custom model "{MODEL_NAME}" not found, cloning from base model...')
-            
-            base_model = self.project.models.get(model_name=BASE_MODEL_NAME)
-            logger.info(f'Base model found: {base_model.name}, id: {base_model.id}')
-            
-            self.model = self.project.models.clone(
-                from_model=base_model,
-                model_name=MODEL_NAME,
-                description="CLIP model for semantic search in clip-smart-search"
+            self.model = self._create_model()
+        return True
+
+    def _create_model(self):
+        """Create a new model based on the DPK."""
+        model = None
+        try:
+            dpk = dl.dpks.get(dpk_name=DPK_NAME)
+            app = self.project.apps.get(app_name=dpk.display_name)
+        except dl.exceptions.NotFound:
+            logger.info(f'App "{DPK_NAME}" not found, installing...')
+            dpk = dl.dpks.get(dpk_name=DPK_NAME)
+            app = self.project.apps.install(
+                app_name=dpk.display_name,
+                dpk=dpk,
+                custom_installation=dpk.to_json()
             )
-            logger.info(f'Cloned model created: {self.model.name}, id: {self.model.id}')
-        
-        if self.model.status != 'deployed':
-            logger.info(f'Deploying model: {self.model.name}')
-            self.model.deploy()
-            self.model.wait_for_model_ready()
-            self.model = self.project.models.get(model_name=MODEL_NAME)
-            logger.info(f'Model deployed: {self.model.name}')
+            logger.info(f'Installed {dpk.display_name} app: {app.name}, ID: {app.id}')
+            model = self._add_model_from_app(app, dpk)
+            
+        return model
+
+    def _add_model_from_app(self, app: dl.App, dpk: dl.Dpk):
+        model_from_dpk = dpk.to_json().get("components", dict()).get('models',[{}])[0]
+
+        request = {
+            "name": MODEL_NAME,
+            "description": "OpenAI CLIP model for search with NLP",
+            "scope": "project",
+            "configuration": model_from_dpk.get("configuration", {}),
+            "outputType": "embedding",
+            "moduleName": "clip-module",
+            "packageId": dpk.id,
+            "status": "pre-trained",
+            "projectId": self.project.id,
+            "app": {
+                "id": app.id,
+                "dpkId": dpk.id,
+                "componentName": model_from_dpk.get("name", MODEL_NAME),
+                "dpkName": dpk.name,
+                "dpkVersion": dpk.version
+            }
+        }
+        success, response = dl.client_api.gen_request(req_type='POST', path=f'/ml/models', json_req=request)
+        if not success:
+            logger.error(f'Failed to create model: {response}')
+            raise Exception(f'Failed to create model: {response.content}')
+            
+        model = dl.Model.from_json(_json=response.json(), client_api=dl.client_api, project=None, package=None)
+
+        return model
 
     def _setup_feature_set(self):
         """Get the model's feature set and store its ID in binaries."""
         # The model adapter creates a feature set named after the model
-        feature_set_name = self.model.name
-        
-        try:
-            self.feature_set = self.project.feature_sets.get(feature_set_name=feature_set_name)
-            logger.info(f'Feature Set found! name: {self.feature_set.name}, id: {self.feature_set.id}')
-            # Update the binaries with the feature set info (for entire.js frontend)
-            self._update_binaries_metadata()
-        except dl.exceptions.NotFound:
-            # Feature set will be created by the model adapter on first embed
-            logger.info(f'Feature Set "{feature_set_name}" not found yet, will be created on first embed')
-            self.feature_set = None
 
-    def _get_model_feature_set(self):
-        """Get the feature set created by the model adapter and update binaries."""
-        feature_set_name = self.model.name
-        try:
-            self.feature_set = self.project.feature_sets.get(feature_set_name=feature_set_name)
-            logger.info(f'Feature Set found! name: {self.feature_set.name}, id: {self.feature_set.id}')
-            self._update_binaries_metadata()
-        except dl.exceptions.NotFound:
-            logger.warning(f'Feature Set "{feature_set_name}" still not found after embed')
-
-    def _update_binaries_metadata(self):
-        """Update the clip_feature_set.json in binaries with the feature set ID."""
-        if self.feature_set is None:
-            logger.info('Feature set not yet available, skipping binaries update')
-            return
-            
         binaries = self.project.datasets._get_binaries_dataset()
         
         # Check if the file already exists with the correct ID
         try:
             existing_item = binaries.items.get(filepath="/clip_feature_set.json")
-            existing_metadata = existing_item.metadata.get("system", {})
-            if existing_metadata.get("clip_feature_set_id") == self.feature_set.id:
-                logger.info('Binaries metadata already up to date')
-                return
+            existing_feature_set_id = existing_item.metadata.get("system", {}).get("clip_feature_set_id", None)
+            self.feature_set = self.project.feature_sets.get(feature_set_id=existing_feature_set_id)
+            if self.feature_set.model_id != self.model.id:
+                self.feature_set.model_id = self.model.id
+                self.feature_set.update()
         except dl.exceptions.NotFound:
-            pass
-        
-        # Upload/update the metadata file
-        buffer = BytesIO()
-        buffer.write(json.dumps({}, default=lambda x: None).encode())
-        buffer.seek(0)
-        buffer.name = "clip_feature_set.json"
-        
-        binaries.items.upload(
-            local_path=buffer,
-            item_metadata={
-                "system": {
-                    "clip_feature_set_id": self.feature_set.id
-                }
-            },
-            overwrite=True
-        )
-        logger.info(f'Updated binaries with feature set ID: {self.feature_set.id}')
+            if self.model.feature_set is None:
+                self.feature_set = self.project.feature_sets.create(
+                    name=self.model.name,
+                    entity_type=dl.FeatureEntityType.ITEM,
+                    model_id=self.model.id,
+                    project_id=self.project.id,
+                    set_type=self.model.name,
+                    size=self.model.configuration.get('embeddings_size', 256),
+                )
+            else:
+                self.feature_set = self.model.feature_set
+                    # Upload/update the metadata file
+            buffer = BytesIO()
+            buffer.write(json.dumps({}, default=lambda x: None).encode())
+            buffer.seek(0)
+            buffer.name = "clip_feature_set.json"
+            
+            binaries.items.upload(
+                local_path=buffer,
+                item_metadata={
+                    "system": {
+                        "clip_feature_set_id": self.feature_set.id
+                    }
+                },
+                overwrite=True
+            )
+            logger.info(f'Updated binaries with feature set ID: {self.feature_set.id}')
 
     def extract_item(self, item: dl.Item) -> dl.Item:
         """Extract CLIP features for a single item using the model adapter."""
@@ -134,11 +134,7 @@ class ClipExtractor(dl.BaseServiceRunner):
         tic = time.time()
         
         self.model.embed(item=item)
-        
-        # After embed, get the feature set and update binaries if needed
-        if self.feature_set is None:
-            self._get_model_feature_set()
-        
+
         logger.info(f'Done. runtime: {(time.time() - tic):.2f}[s]')
         return item
 
@@ -150,10 +146,6 @@ class ClipExtractor(dl.BaseServiceRunner):
         # Use the model adapter to embed the entire dataset (it handles mimetype filtering)
         execution = self.model.embed_datasets(dataset_ids=[dataset.id])
         execution.wait()
-        
-        # After embed, get the feature set and update binaries if needed
-        if self.feature_set is None:
-            self._get_model_feature_set()
         
         if progress is not None:
             progress.update(progress=100)
