@@ -1,14 +1,15 @@
+from typing import Any
+
+
 import json
 import logging
 import time
 from io import BytesIO
 import dtlpy as dl
 
-
 logger = logging.getLogger('[CLIP-SEARCH]')
 
 DPK_NAME = "clip-model-pretrained"
-BASE_MODEL_NAME = "openai-clip"
 MODEL_NAME = "CLIP model for semantic search"
 
 
@@ -19,10 +20,10 @@ class ClipExtractor(dl.BaseServiceRunner):
         self.project = project
         self.model = None
         self.feature_set = None
-        
+
         # Install/get the CLIP model adapter and set up the model
         self._validate_model()
-        
+
         # Set up the feature set and store its ID in binaries
         self._setup_feature_set()
 
@@ -40,48 +41,19 @@ class ClipExtractor(dl.BaseServiceRunner):
         """Create a new model based on the DPK."""
         model = None
         try:
-            dpk = dl.dpks.get(dpk_name=DPK_NAME)
-            app = self.project.apps.get(app_name=dpk.display_name)
+            app = self.project.apps.get(app_name='OpenAI CLIP')
+            dpk = app.dpk
         except dl.exceptions.NotFound:
             logger.info(f'App "{DPK_NAME}" not found, installing...')
             dpk = dl.dpks.get(dpk_name=DPK_NAME)
-            app = self.project.apps.install(
-                app_name=dpk.display_name,
-                dpk=dpk,
-                custom_installation=dpk.to_json()
-            )
+            app = self.project.apps.install(app_name=dpk.display_name, dpk=dpk)
             logger.info(f'Installed {dpk.display_name} app: {app.name}, ID: {app.id}')
-            model = self._add_model_from_app(app, dpk)
-            
-        return model
-
-    def _add_model_from_app(self, app: dl.App, dpk: dl.Dpk):
-        model_from_dpk = dpk.to_json().get("components", dict()).get('models',[{}])[0]
-
-        request = {
-            "name": MODEL_NAME,
-            "description": "OpenAI CLIP model for search with NLP",
-            "scope": "project",
-            "configuration": model_from_dpk.get("configuration", {}),
-            "outputType": "embedding",
-            "moduleName": "clip-module",
-            "packageId": dpk.id,
-            "status": "pre-trained",
-            "projectId": self.project.id,
-            "app": {
-                "id": app.id,
-                "dpkId": dpk.id,
-                "componentName": model_from_dpk.get("name", MODEL_NAME),
-                "dpkName": dpk.name,
-                "dpkVersion": dpk.version
-            }
-        }
-        success, response = dl.client_api.gen_request(req_type='POST', path=f'/ml/models', json_req=request)
-        if not success:
-            logger.error(f'Failed to create model: {response}')
-            raise Exception(f'Failed to create model: {response.content}')
-            
-        model = dl.Model.from_json(_json=response.json(), client_api=dl.client_api, project=None, package=None)
+        model = app.models.create(
+            model_name=MODEL_NAME,
+            dpk_model_name='openai-clip',
+            output_type='embedding',
+            description='OpenAI CLIP model for search with NLP',
+        )
 
         return model
 
@@ -90,7 +62,7 @@ class ClipExtractor(dl.BaseServiceRunner):
         # The model adapter creates a feature set named after the model
 
         binaries = self.project.datasets._get_binaries_dataset()
-        
+
         # Check if the file already exists with the correct ID
         try:
             existing_item = binaries.items.get(filepath="/clip_feature_set.json")
@@ -111,20 +83,16 @@ class ClipExtractor(dl.BaseServiceRunner):
                 )
             else:
                 self.feature_set = self.model.feature_set
-                    # Upload/update the metadata file
+                # Upload/update the metadata file
             buffer = BytesIO()
             buffer.write(json.dumps({}, default=lambda x: None).encode())
             buffer.seek(0)
             buffer.name = "clip_feature_set.json"
-            
+
             binaries.items.upload(
                 local_path=buffer,
-                item_metadata={
-                    "system": {
-                        "clip_feature_set_id": self.feature_set.id
-                    }
-                },
-                overwrite=True
+                item_metadata={"system": {"clip_feature_set_id": self.feature_set.id}},
+                overwrite=True,
             )
             logger.info(f'Updated binaries with feature set ID: {self.feature_set.id}')
 
@@ -132,7 +100,7 @@ class ClipExtractor(dl.BaseServiceRunner):
         """Extract CLIP features for a single item using the model adapter."""
         logger.info(f'Started on item id: {item.id}, filename: {item.filename}')
         tic = time.time()
-        
+
         self.model.embed(item=item)
 
         logger.info(f'Done. runtime: {(time.time() - tic):.2f}[s]')
@@ -142,14 +110,14 @@ class ClipExtractor(dl.BaseServiceRunner):
         """Extract CLIP features for a dataset using the model adapter."""
         logger.info(f'Starting dataset extraction for dataset: {dataset.name}')
         tic = time.time()
-        
+
         # Use the model adapter to embed the entire dataset (it handles mimetype filtering)
         execution = self.model.embed_datasets(dataset_ids=[dataset.id])
         execution.wait()
-        
+
         if progress is not None:
             progress.update(progress=100)
-        
+
         logger.info(f'Dataset extraction done. runtime: {(time.time() - tic):.2f}[s]')
         return dataset
 
