@@ -1,137 +1,124 @@
-import tqdm
-import clip
+from typing import Any
+
+
 import json
 import logging
-import os
-import shutil
-import torch
 import time
+from io import BytesIO
 import dtlpy as dl
 
-from PIL import Image, ImageFile
-from io import BytesIO
-from pathlib import Path
-
-import concurrent.futures
-from concurrent.futures import ThreadPoolExecutor
-
 logger = logging.getLogger('[CLIP-SEARCH]')
-ImageFile.LOAD_TRUNCATED_IMAGES = True
+
+DPK_NAME = "clip-model-pretrained"
+MODEL_NAME = "CLIP model for semantic search"
 
 
 class ClipExtractor(dl.BaseServiceRunner):
     def __init__(self, project=None):
         if project is None:
             project = self.service_entity.project
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.model, self.preprocess = clip.load("ViT-B/32", device=self.device)
+        self.project = project
+        self.model = None
         self.feature_set = None
-        self.feature_set_name = 'clip-feature-set'
-        # self.feature_vector_entities = list()
-        self.create_feature_set(project=project)
 
-    def create_feature_set(self, project: dl.Project):
+        # Install/get the CLIP model adapter and set up the model
+        self._validate_model()
+
+        # Set up the feature set and store its ID in binaries
+        self._setup_feature_set()
+
+    def _validate_model(self):
+        """Validate the model exists and is deployed."""
         try:
-            feature_set = project.feature_sets.get(feature_set_name=self.feature_set_name)
-            logger.info(f'Feature Set found! name: {feature_set.name}, id: {feature_set.id}')
+            self.model = self.project.models.get(model_name=MODEL_NAME)
+            logger.info(f'Custom model found: {self.model.name}, id: {self.model.id}')
         except dl.exceptions.NotFound:
-            logger.info('Feature Set not found. creating...')
-            feature_set = project.feature_sets.create(name=self.feature_set_name,
-                                                      entity_type=dl.FeatureEntityType.ITEM,
-                                                      project_id=project.id,
-                                                      set_type='clip',
-                                                      size=512)
-            logger.info(f'Feature Set created! name: {feature_set.name}, id: {feature_set.id}')
-            binaries = project.datasets._get_binaries_dataset()
+            logger.info(f'Custom model "{MODEL_NAME}" not found, cloning from base model...')
+            self.model = self._create_model()
+        return True
+
+    def _create_model(self):
+        """Create a new model based on the DPK."""
+        model = None
+        try:
+            app = self.project.apps.get(app_name='OpenAI CLIP')
+            dpk = app.dpk
+        except dl.exceptions.NotFound:
+            logger.info(f'App "{DPK_NAME}" not found, installing...')
+            dpk = dl.dpks.get(dpk_name=DPK_NAME)
+            app = self.project.apps.install(app_name=dpk.display_name, dpk=dpk)
+            logger.info(f'Installed {dpk.display_name} app: {app.name}, ID: {app.id}')
+        model = app.models.create(
+            model_name=MODEL_NAME,
+            dpk_model_name='openai-clip',
+            output_type='embedding',
+            description='OpenAI CLIP model for search with NLP',
+        )
+
+        return model
+
+    def _setup_feature_set(self):
+        """Get the model's feature set and store its ID in binaries."""
+        # The model adapter creates a feature set named after the model
+
+        binaries = self.project.datasets._get_binaries_dataset()
+
+        # Check if the file already exists with the correct ID
+        try:
+            existing_item = binaries.items.get(filepath="/clip_feature_set.json")
+            existing_feature_set_id = existing_item.metadata.get("system", {}).get("clip_feature_set_id", None)
+            self.feature_set = self.project.feature_sets.get(feature_set_id=existing_feature_set_id)
+            if self.feature_set.model_id != self.model.id:
+                self.feature_set.model_id = self.model.id
+                self.feature_set.update()
+        except dl.exceptions.NotFound:
+            if self.model.feature_set is None:
+                self.feature_set = self.project.feature_sets.create(
+                    name=self.model.name,
+                    entity_type=dl.FeatureEntityType.ITEM,
+                    model_id=self.model.id,
+                    project_id=self.project.id,
+                    set_type=self.model.name,
+                    size=self.model.configuration.get('embeddings_size', 256),
+                )
+            else:
+                self.feature_set = self.model.feature_set
+                # Upload/update the metadata file
             buffer = BytesIO()
             buffer.write(json.dumps({}, default=lambda x: None).encode())
             buffer.seek(0)
             buffer.name = "clip_feature_set.json"
-            feature_set_item = binaries.items.upload(
-                local_path=buffer,
-                item_metadata={
-                    "system": {
-                        "clip_feature_set_id": feature_set.id
-                    }
-                },
-                overwrite=True
-            )
-        self.feature_set = feature_set
-        # self.feature_vector_entities = [fv.entity_id for fv in self.feature_set.features.list().all()]
 
-    def extract_from_data(self, item: dl.Item, image: Image.Image = None, text=None):
-        if image is not None:
-            image = self.preprocess(image).unsqueeze(0).to(self.device)
-            features = self.model.encode_image(image)
-        elif text is not None:
-            tokens = clip.tokenize([text], context_length=77, truncate=True).to(self.device)
-            features = self.model.encode_text(tokens)
-        else:
-            raise ValueError('Either image or text is required')
-        embedding = features[0].cpu().detach().numpy().tolist()
-        try:
-            feature_vector = self.feature_set.features.create(value=embedding, entity=item)
-        except dl.exceptions.BadRequest:
-            logger.error(f'Error creating feature vector for item id: {item.id}, feature vector already exists!')
-        return
+            binaries.items.upload(
+                local_path=buffer,
+                item_metadata={"system": {"clip_feature_set_id": self.feature_set.id}},
+                overwrite=True,
+            )
+            logger.info(f'Updated binaries with feature set ID: {self.feature_set.id}')
 
     def extract_item(self, item: dl.Item) -> dl.Item:
-        # if item.id in self.feature_vector_entities:
-        #     logger.info(f'Item {item.id} already has feature vector')
-        #     return item
+        """Extract CLIP features for a single item using the model adapter."""
         logger.info(f'Started on item id: {item.id}, filename: {item.filename}')
         tic = time.time()
-        # assert False
-        if 'image/' in item.mimetype:
-            orig_image = Image.fromarray(item.download(save_locally=False, to_array=True))
-            # orig_image = Image.open(item)
-            features = self.extract_from_data(item=item, image=orig_image)
-        elif 'text/' in item.mimetype:
-            text = item.download(save_locally=False).read().decode()
-            # TODO get the length of input text currently hardcoded to 200
-            features = self.extract_from_data(item=item, text=text[:200])
-        else:
-            raise ValueError(f'Unsupported mimetype for clip: {item.mimetype}')
+
+        self.model.embed(item=item)
+
         logger.info(f'Done. runtime: {(time.time() - tic):.2f}[s]')
         return item
 
     def extract_dataset(self, dataset: dl.Dataset, query=None, progress=None):
-        filters = dl.Filters(custom_filter=query)
-        filters.add(field='metadata.system.mimetype', values="image/*", method=dl.FILTERS_METHOD_OR)
-        filters.add(field='metadata.system.mimetype', values="text/*", method=dl.FILTERS_METHOD_OR)
+        """Extract CLIP features for a dataset using the model adapter."""
+        logger.info(f'Starting dataset extraction for dataset: {dataset.name}')
+        tic = time.time()
 
-        items_path = os.path.join(os.getcwd(), dataset.id)
-        item_filepaths = dataset.items.download(filters=filters,
-                                                local_path=items_path,
-                                                annotation_options=dl.ViewAnnotationOptions.JSON)
-        item_filepaths = list(item_filepaths)
-        items = list()
-        for item_path in item_filepaths:
-            json_path = Path(item_path.replace('items', 'json')).with_suffix('.json')
-            with open(json_path, 'r') as f:
-                data = json.load(f)
-            item = dl.Item.from_json(_json=data, client_api=dl.client_api)
-            items.append(item)
-        pbar = tqdm.tqdm(total=len(items))
+        # Use the model adapter to embed the entire dataset (it handles mimetype filtering)
+        execution = self.model.embed_datasets(dataset_ids=[dataset.id])
+        execution.wait()
 
-        with ThreadPoolExecutor() as executor:
-            futures = [executor.submit(self.extract_item, item) for item in items]
-            done_count = 0
-            previous_update = 0
-            while futures:
-                done, futures = concurrent.futures.wait(futures, return_when=concurrent.futures.FIRST_COMPLETED)
-                done_count += len(done)
-                pbar.update(len(done))
-                current_progress = done_count * 100 // len(items)
+        if progress is not None:
+            progress.update(progress=100)
 
-                if (current_progress // 10) % 10 > previous_update:
-                    previous_update = (current_progress // 10) % 10
-                    if progress is not None:
-                        progress.update(progress=previous_update * 10)
-                    else:
-                        logger.info(f'Extracted {done_count} out of {len(items)} items')
-
-        shutil.rmtree(items_path)
+        logger.info(f'Dataset extraction done. runtime: {(time.time() - tic):.2f}[s]')
         return dataset
 
 
