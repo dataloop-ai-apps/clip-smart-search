@@ -101,7 +101,7 @@ class ClipExtractor(dl.BaseServiceRunner):
         logger.info(f'Started on item id: {item.id}, filename: {item.filename}')
         tic = time.time()
 
-        self.model.embed(item=item)
+        self.model.embed(item_ids=[item.id])
 
         logger.info(f'Done. runtime: {(time.time() - tic):.2f}[s]')
         return item
@@ -123,8 +123,8 @@ class ClipExtractor(dl.BaseServiceRunner):
 
 
 if __name__ == "__main__":
-    dl.setenv('')
-    project = dl.projects.get(project_id='')
+    dl.setenv('rc')
+    project = dl.projects.get(project_id='035fad55-9bfc-417f-b112-76a2ca0d767d')
     app = ClipExtractor(project=project)
-    dataset = project.datasets.get(dataset_id='')
-    app.extract_dataset(dataset=dataset)
+    # dataset = project.datasets.get(dataset_id='')
+    # app.extract_dataset(dataset=dataset)
