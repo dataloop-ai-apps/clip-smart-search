@@ -27,19 +27,33 @@ async function run(textInput, itemsQuery) {
     featureSetId = item.metadata.system.clip_feature_set_id
   }
   catch (e) {
-    console.log(e)
-    dl.sendEvent({
-      name: "app:toastMessage",
-      payload: {
-        message: "CLIP FeatureSet does not exist for this project, running pre-process",
-        type: "warning"
-      }
-    })
-    const execution = await dl.executions.create({
+    // Feature set missing: start extraction if none has been run, else ask user to wait or retry
+    const executions = await dl.executions.query({
       functionName: 'extract_dataset',
-      serviceName: 'clip-extraction',
-      input: { dataset: { dataset_id: dataset.id }, query: null },
+      serviceName: 'clip-extraction'
     })
+    if (executions.totalItemsCount === 0) {
+      dl.sendEvent({
+        name: "app:toastMessage",
+        payload: {
+          message: "CLIP FeatureSet does not exist for this project, running extraction",
+          type: "warning"
+        }
+      })
+      await dl.executions.create({
+        functionName: 'extract_dataset',
+        serviceName: 'clip-extraction',
+        input: { dataset: { dataset_id: dataset.id }, query: null },
+      })
+    } else {
+      dl.sendEvent({
+        name: "app:toastMessage",
+        payload: {
+          message: "CLIP FeatureSet not ready. Extraction was already run for this project - please wait for it to complete or check execution status.",
+          type: "warning"
+        }
+      })
+    }
     return defaultQuery
   }
   const query_feature = {
