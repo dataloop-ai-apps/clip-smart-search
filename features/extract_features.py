@@ -35,6 +35,9 @@ class ClipExtractor(dl.BaseServiceRunner):
         except dl.exceptions.NotFound:
             logger.info(f'Custom model "{MODEL_NAME}" not found, cloning from base model...')
             self.model = self._create_model()
+        # check if model is not deployed, deploy it
+        if self.model.status != 'deployed':
+            self.model.deploy()
         return True
 
     def _create_model(self):
