@@ -125,7 +125,6 @@
         "runtime": {
           "podType": "regular-m",
           "concurrency": 10,
-          "runnerImage": "gcr.io/viewo-g/piper/agent/runner/apps/clip-smart-search:0.1.4",
           "autoscaler": {
             "type": "rabbitmq",
             "minReplicas": 0,
