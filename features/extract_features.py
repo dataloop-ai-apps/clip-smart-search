@@ -38,6 +38,7 @@ class ClipExtractor(dl.BaseServiceRunner):
         # check if model is not deployed, deploy it
         if self.model.status != 'deployed':
             self.model.deploy()
+        self.model = dl.models.get(model_id=self.model.id)
         return True
 
     def _create_model(self):
