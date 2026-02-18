@@ -82,7 +82,7 @@ class ClipExtractor(dl.BaseServiceRunner):
                     model_id=self.model.id,
                     project_id=self.project.id,
                     set_type=self.model.name,
-                    size=self.model.configuration.get('embeddings_size', 256),
+                    size=self.model.configuration.get('embeddings_size', 512),
                 )
             else:
                 self.feature_set = self.model.feature_set
