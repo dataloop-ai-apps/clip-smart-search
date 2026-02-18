@@ -28,9 +28,11 @@ async function run(textInput, itemsQuery) {
   }
   catch (e) {
     // Feature set missing: start extraction if none has been run, else ask user to wait or retry
+    const p = await dl.projects.get()
     const executions = await dl.executions.query({
       functionName: 'extract_dataset',
-      serviceName: 'clip-extraction'
+      serviceName: 'clip-extraction',
+      projectId: p.id
     })
     if (executions.totalItemsCount === 0) {
       dl.sendEvent({
@@ -42,7 +44,7 @@ async function run(textInput, itemsQuery) {
       })
       await dl.executions.create({
         functionName: 'extract_dataset',
-        serviceName: 'clip-extraction',
+        serviceName: 'clip-extraction-long',
         input: { dataset: { dataset_id: dataset.id }, query: null },
       })
     } else {
